@@ -164,9 +164,9 @@ if __name__ == '__main__':
                         logger=logger)
 
     # !Wandb
-    if config['LOGGER']['wandb'] == True:
-        wandb_project_serial = 'template'
-        wandb_username =  ''
+    if config['LOGGER']['wandb']['use'] == True:
+        wandb_project_serial = config['LOGGER']['wandb']['project_serial']
+        wandb_username =  config['LOGGER']['wandb']['username']
         wandb.init(project=wandb_project_serial, dir=RECORDER_DIR, entity=wandb_username)
         wandb.run.name = train_serial
         wandb.config.update(config)

@@ -1,5 +1,5 @@
 DIRECTORY:
-  dataset: path_to_train.json
+  dataset: /home/yura/Competitions/aichall_2022_mrc/dataset
 
 AUGMENTATION:
   
@@ -32,7 +32,10 @@ DATALOADER:
   drop_last: False
 
 LOGGER:
-  wandb: False
+  wandb:
+    - use: True
+    - username: yuuraa
+    - project_serial: aichall_2022_mrc
   logging_interval: 200
   plot:
     - loss
