@@ -1,0 +1,9 @@
+DIRECTORY:
+  dataset: ../dataset
+
+TRAIN:
+  train_serial: 'YYYYMMDD_SERIAL'
+
+PREDICT:
+  seed: 42
+  gpu: 0
