@@ -9,8 +9,7 @@ from modules.optimizers import get_optimizer
 from modules.metrics import get_metric
 from modules.losses import get_loss
 from models.utils import get_model
-
-from transformers import ElectraTokenizerFast
+from modules.preprocessing import get_tokenizer
 
 from torch.utils.data import DataLoader
 import torch
@@ -43,6 +42,7 @@ os.makedirs(RECORDER_DIR, exist_ok=True)
 
 # Data directory
 DATA_DIR = config['DIRECTORY']['dataset']
+PREPROCESSED_DIR = os.path.join(DATA_DIR, 'preprocessed', config['TRAINER']['pretrained'])
 
 # Seed
 torch.manual_seed(config['TRAINER']['seed'])
@@ -67,25 +67,21 @@ if __name__ == '__main__':
     01. Load data
     """
     # Load tokenizer
-
-    tokenizer_dict = {'ElectraTokenizerFast': ElectraTokenizerFast}
-
-    tokenizer = tokenizer_dict[config['TRAINER']['tokenizer']].from_pretrained(config['TRAINER']['pretrained'])
-
+    tokenizer = get_tokenizer(config['TRAINER']['tokenizer'], config['TRAINER']['pretrained'])
 
     # Load Dataset
-    if not DEBUG and os.path.isfile(os.path.join(DATA_DIR,'train_dataset.pt')):
-        train_dataset = torch.load(os.path.join(DATA_DIR,'train_dataset.pt'))
-        val_dataset = torch.load(os.path.join(DATA_DIR,'val_dataset.pt'))
+    if not DEBUG and os.path.isfile(os.path.join(PREPROCESSED_DIR, 'train_dataset.pt')):
+        train_dataset = torch.load(os.path.join(PREPROCESSED_DIR,'train_dataset.pt'))
+        val_dataset = torch.load(os.path.join(PREPROCESSED_DIR,'val_dataset.pt'))
         logger.info("loaded existing .pt")
     else:
-        train_dataset = QADataset(data_dir=os.path.join(DATA_DIR, 'train.json'), tokenizer = tokenizer, max_seq_len = 512, mode = 'train')
-        val_dataset = QADataset(data_dir=os.path.join(DATA_DIR, 'train.json'), tokenizer = tokenizer, max_seq_len = 512, mode = 'val')
+        train_dataset = QADataset(data_dir=os.path.join(DATA_DIR, 'train.json'), tokenizer = tokenizer, max_seq_len = tokenizer.model_max_length, mode = 'train')
+        val_dataset = QADataset(data_dir=os.path.join(DATA_DIR, 'train.json'), tokenizer = tokenizer, max_seq_len = tokenizer.model_max_length, mode = 'val')
         if not DEBUG:
-            torch.save(train_dataset, os.path.join(DATA_DIR,'train_dataset.pt'))
-            torch.save(val_dataset, os.path.join(DATA_DIR,'val_dataset.pt'))
+            os.makedirs(PREPROCESSED_DIR, exist_ok=True)
+            torch.save(train_dataset, os.path.join(PREPROCESSED_DIR,'train_dataset.pt'))
+            torch.save(val_dataset, os.path.join(PREPROCESSED_DIR,'val_dataset.pt'))
         logger.info("loaded data, created .pt")
-
 
     
     if DEBUG:
