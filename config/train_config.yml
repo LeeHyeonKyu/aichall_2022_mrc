@@ -21,11 +21,8 @@ TRAINER :
   gpu: 0
   seed: 42
 
-MODEL:
-  electra:
-
 DATALOADER:
-  batch_size: 16
+  batch_size: 4
   num_workers: 0
   shuffle: True
   pin_memory: True
@@ -33,9 +30,9 @@ DATALOADER:
 
 LOGGER:
   wandb:
-    - use: True
-    - username: yuuraa
-    - project_serial: aichall_2022_mrc
+    use: True
+    username: yuuraa
+    project_serial: aichall_2022_mrc
   logging_interval: 200
   plot:
     - loss
