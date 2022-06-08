@@ -123,6 +123,7 @@ class Trainer():
         self.y = list()
         self.score_dict = dict()
         self.elapsed_time = 0
+        torch.cuda.empty_cache()
         
         
         
