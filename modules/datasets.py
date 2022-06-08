@@ -120,7 +120,7 @@ class QADataset(Dataset):
 
             # answer passage truncated
             if start_positions[-1] is None:
-                start_positions[-1] = tokenizer.model_max_length
+                start_positions[-1] = self.tokenizer.model_max_length
             # end position cannot be found, shift until found
             shift = 1
             while end_positions[-1] is None:
