@@ -5,9 +5,9 @@ AUGMENTATION:
   
 TRAINER :
   debug: False
-  tokenizer: ElectraTokenizerFast
-  model: electra
-  pretrained: monologg/koelectra-small-v3-discriminator
+  tokenizer: AutoTokenizer
+  model: RobertaForQuestionAnswering
+  pretrained: klue/roberta-large
   optimizer: adamw
   learning_rate: 5.0e-4
   loss: crossentropy
@@ -22,7 +22,7 @@ TRAINER :
   seed: 42
 
 DATALOADER:
-  batch_size: 4
+  batch_size: 16 
   num_workers: 0
   shuffle: True
   pin_memory: True
