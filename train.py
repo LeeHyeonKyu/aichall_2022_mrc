@@ -19,14 +19,19 @@ import numpy as np
 import random
 import os
 import copy
+import argparse
 
 import wandb
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--train_cfg", type=str, default="train_config.yaml")
+args = parser.parse_args()
 
 # Root directory
 PROJECT_DIR = os.path.dirname(__file__)
 
 # Load config
-config_path = os.path.join(PROJECT_DIR, 'config', 'train_config.yml')
+config_path = os.path.join(PROJECT_DIR, 'config', args.train_cfg)
 config = load_yaml(config_path)
 
 # Train Serial
@@ -169,7 +174,7 @@ if __name__ == '__main__':
         wandb.watch(model)
 
     # Save train config
-    save_yaml(os.path.join(RECORDER_DIR, 'train_config.yml'), config)
+    save_yaml(os.path.join(RECORDER_DIR, args.train_cfg), config)
 
     """
     04. TRAIN
@@ -202,7 +207,7 @@ if __name__ == '__main__':
         """
         print(f"Val {epoch_index}/{n_epochs}")
         logger.info(f"--Val {epoch_index}/{n_epochs}")
-        trainer.train(dataloader=val_dataloader, epoch_index=epoch_index, tokenizer=tokenizer, mode='val')
+        trainer.validate(dataloader=val_dataloader, epoch_index=epoch_index, tokenizer=tokenizer, mode='val')
         
         row_dict['val_loss'] = trainer.loss_mean
         row_dict['val_elapsed_time'] = trainer.elapsed_time 
