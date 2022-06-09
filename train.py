@@ -193,7 +193,7 @@ if __name__ == '__main__':
         """
         print(f"Train {epoch_index}/{n_epochs}")
         logger.info(f"--Train {epoch_index}/{n_epochs}")
-        trainer.train(dataloader=train_dataloader, epoch_index=epoch_index, tokenizer=tokenizer, mode='train')
+        trainer.train(dataloader=train_dataloader, epoch_index=epoch_index)
         
         row_dict['train_loss'] = trainer.loss_mean
         row_dict['train_elapsed_time'] = trainer.elapsed_time 
@@ -207,7 +207,7 @@ if __name__ == '__main__':
         """
         print(f"Val {epoch_index}/{n_epochs}")
         logger.info(f"--Val {epoch_index}/{n_epochs}")
-        trainer.validate(dataloader=val_dataloader, epoch_index=epoch_index, tokenizer=tokenizer, mode='val')
+        trainer.validate(dataloader=val_dataloader, epoch_index=epoch_index)
         
         row_dict['val_loss'] = trainer.loss_mean
         row_dict['val_elapsed_time'] = trainer.elapsed_time 
