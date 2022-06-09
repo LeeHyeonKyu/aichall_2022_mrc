@@ -1,25 +1,28 @@
-import pandas as pd
-import numpy as np
-import torch
 import os
-
 from time import time
+
+import numpy as np
+import pandas as pd
+import torch
 from tqdm import tqdm
+
 # from apex import amp
 
-class Trainer():
 
-    def __init__(self,
-                 model,
-                 optimizer,
-                 loss,
-                 metrics,
-                 device,
-                 logger,
-                 amp,
-                 tokenizer,
-                 interval=100):
-        
+class Trainer:
+    def __init__(
+        self,
+        model,
+        optimizer,
+        loss,
+        metrics,
+        device,
+        logger,
+        amp,
+        tokenizer,
+        interval=100,
+    ):
+
         self.model = model
         self.optimizer = optimizer
         self.loss = loss
@@ -32,12 +35,11 @@ class Trainer():
 
         # History
         self.loss_sum = 0  # Epoch loss sum
-        self.loss_mean = 0 # Epoch loss mean
+        self.loss_mean = 0  # Epoch loss mean
         self.y = list()
         self.y_preds = list()
         self.score_dict = dict()  # metric score
         self.elapsed_time = 0
-        
 
     def train(self, mode, dataloader, tokenizer, epoch_index=0):
         with torch.set_grad_enabled(mode == 'train'):
@@ -123,6 +125,4 @@ class Trainer():
         self.y = list()
         self.score_dict = dict()
         self.elapsed_time = 0
-        
-        
 

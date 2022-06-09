@@ -1,7 +1,7 @@
-from transformers import ElectraTokenizerFast, AutoTokenizer
+from transformers import AutoTokenizer, ElectraTokenizerFast
 
+tokenizer_dict = {"ElectraTokenizerFast": ElectraTokenizerFast}
 
-tokenizer_dict = {'ElectraTokenizerFast': ElectraTokenizerFast}
 
 def get_tokenizer(tokenizer_name, pretrained):
     if tokenizer_name in tokenizer_dict:
