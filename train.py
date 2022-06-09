@@ -19,14 +19,19 @@ import numpy as np
 import random
 import os
 import copy
+import argparse
 
 import wandb
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--train_cfg", type=str, default="train_config.yml")
+args = parser.parse_args()
 
 # Root directory
 PROJECT_DIR = os.path.dirname(__file__)
 
 # Load config
-config_path = os.path.join(PROJECT_DIR, 'config', 'train_config.yml')
+config_path = os.path.join(PROJECT_DIR, 'config', args.train_cfg)
 config = load_yaml(config_path)
 
 # Train Serial
@@ -160,7 +165,8 @@ if __name__ == '__main__':
                         logger=logger)
 
     # !Wandb
-    if config['LOGGER']['wandb']['use'] == True:
+    USE_WANDB = config['LOGGER']['wandb']['use']
+    if USE_WANDB:
         wandb_project_serial = config['LOGGER']['wandb']['project_serial']
         wandb_username =  config['LOGGER']['wandb']['username']
         wandb.init(project=wandb_project_serial, dir=RECORDER_DIR, entity=wandb_username)
@@ -169,7 +175,7 @@ if __name__ == '__main__':
         wandb.watch(model)
 
     # Save train config
-    save_yaml(os.path.join(RECORDER_DIR, 'train_config.yml'), config)
+    save_yaml(os.path.join(RECORDER_DIR, args.train_cfg), config)
 
     """
     04. TRAIN
@@ -188,7 +194,7 @@ if __name__ == '__main__':
         """
         print(f"Train {epoch_index}/{n_epochs}")
         logger.info(f"--Train {epoch_index}/{n_epochs}")
-        trainer.train(dataloader=train_dataloader, epoch_index=epoch_index, tokenizer=tokenizer, mode='train')
+        trainer.train(dataloader=train_dataloader, epoch_index=epoch_index)
         
         row_dict['train_loss'] = trainer.loss_mean
         row_dict['train_elapsed_time'] = trainer.elapsed_time 
@@ -202,7 +208,7 @@ if __name__ == '__main__':
         """
         print(f"Val {epoch_index}/{n_epochs}")
         logger.info(f"--Val {epoch_index}/{n_epochs}")
-        trainer.train(dataloader=val_dataloader, epoch_index=epoch_index, tokenizer=tokenizer, mode='val')
+        trainer.validate(dataloader=val_dataloader, epoch_index=epoch_index)
         
         row_dict['val_loss'] = trainer.loss_mean
         row_dict['val_elapsed_time'] = trainer.elapsed_time 
@@ -218,7 +224,7 @@ if __name__ == '__main__':
         recorder.save_plot(config['LOGGER']['plot'])
 
         #!WANDB
-        if config['LOGGER']['wandb'] == True:
+        if USE_WANDB:
             wandb.log(row_dict)
 
         """
@@ -234,6 +240,7 @@ if __name__ == '__main__':
         if early_stopper.stop == True:
             logger.info(f"Early stopped, counter {early_stopper.patience_counter}/{config['TRAINER']['early_stopping_patience']}")
             
-            if config['LOGGER']['wandb'] == True:
+            if USE_WANDB:
                 wandb.log(best_row_dict)
             break
+

@@ -1,5 +1,5 @@
 DIRECTORY:
-  dataset: /home/yura/Competitions/aichall_2022_mrc/dataset
+  dataset: /aichall_2022_mrc/dataset
 
 AUGMENTATION:
   
@@ -32,7 +32,7 @@ LOGGER:
   wandb:
     use: True
     username: yuuraa
-    project_serial: aichall_2022_mrc
+    project_serial: aichallenge_2022
   logging_interval: 200
   plot:
     - loss
