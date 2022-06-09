@@ -165,7 +165,8 @@ if __name__ == '__main__':
                         logger=logger)
 
     # !Wandb
-    if config['LOGGER']['wandb']['use'] == True:
+    USE_WANDB = config['LOGGER']['wandb']['use']
+    if USE_WANDB:
         wandb_project_serial = config['LOGGER']['wandb']['project_serial']
         wandb_username =  config['LOGGER']['wandb']['username']
         wandb.init(project=wandb_project_serial, dir=RECORDER_DIR, entity=wandb_username)
@@ -223,7 +224,7 @@ if __name__ == '__main__':
         recorder.save_plot(config['LOGGER']['plot'])
 
         #!WANDB
-        if config['LOGGER']['wandb'] == True:
+        if USE_WANDB:
             wandb.log(row_dict)
 
         """
@@ -239,7 +240,7 @@ if __name__ == '__main__':
         if early_stopper.stop == True:
             logger.info(f"Early stopped, counter {early_stopper.patience_counter}/{config['TRAINER']['early_stopping_patience']}")
             
-            if config['LOGGER']['wandb'] == True:
+            if USE_WANDB:
                 wandb.log(best_row_dict)
             break
 
