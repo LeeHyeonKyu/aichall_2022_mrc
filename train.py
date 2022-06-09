@@ -24,7 +24,7 @@ import argparse
 import wandb
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--train_cfg", type=str, default="train_config.yaml")
+parser.add_argument("--train_cfg", type=str, default="train_config.yml")
 args = parser.parse_args()
 
 # Root directory
@@ -242,3 +242,4 @@ if __name__ == '__main__':
             if config['LOGGER']['wandb'] == True:
                 wandb.log(best_row_dict)
             break
+
