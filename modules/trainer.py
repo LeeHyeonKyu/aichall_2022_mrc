@@ -21,10 +21,12 @@ class Trainer:
         amp,
         tokenizer,
         interval=100,
+        scheduler=None,
     ):
 
         self.model = model
         self.optimizer = optimizer
+        self.scheduler = scheduler
         self.loss = loss
         self.metrics = metrics
         self.device = device
@@ -83,8 +85,8 @@ class Trainer:
                             scaled_loss.backward()
 
                     self.optimizer.step()
-
-                    # self.optimizer.zero_grad()
+                    if self.scheduler is not None:
+                        self.scheduler.step()
 
                 elif mode in ["val", "test"]:
                     pass
@@ -132,3 +134,4 @@ class Trainer:
         self.y = list()
         self.score_dict = dict()
         self.elapsed_time = 0
+
