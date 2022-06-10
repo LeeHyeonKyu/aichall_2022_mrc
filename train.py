@@ -227,10 +227,15 @@ if __name__ == "__main__":
         print(f"Train {epoch_index}/{n_epochs}")
         logger.info(f"--Train {epoch_index}/{n_epochs}")
 
-        trainer.train(dataloader=train_dataloader, epoch_index=epoch_index, tokenizer=tokenizer, mode='train')
+        trainer.train(
+            dataloader=train_dataloader,
+            epoch_index=epoch_index,
+            tokenizer=tokenizer,
+            mode="train",
+        )
 
-        row_dict['train_loss'] = trainer.loss_mean
-        row_dict['train_elapsed_time'] = trainer.elapsed_time 
+        row_dict["train_loss"] = trainer.loss_mean
+        row_dict["train_elapsed_time"] = trainer.elapsed_time
 
         for metric_str, score in trainer.score_dict.items():
             row_dict[f"train_{metric_str}"] = score
@@ -243,11 +248,16 @@ if __name__ == "__main__":
         logger.info(f"--Val {epoch_index}/{n_epochs}")
 
         # trainer.validate(dataloader=val_dataloader, epoch_index=epoch_index)
-        trainer.train(dataloader=val_dataloader, epoch_index=epoch_index, tokenizer=tokenizer, mode='val')
-        
-        row_dict['val_loss'] = trainer.loss_mean
-        row_dict['val_elapsed_time'] = trainer.elapsed_time 
-        
+        trainer.train(
+            dataloader=val_dataloader,
+            epoch_index=epoch_index,
+            tokenizer=tokenizer,
+            mode="val",
+        )
+
+        row_dict["val_loss"] = trainer.loss_mean
+        row_dict["val_elapsed_time"] = trainer.elapsed_time
+
         for metric_str, score in trainer.score_dict.items():
             row_dict[f"val_{metric_str}"] = score
         trainer.clear_history()
