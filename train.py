@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     # Scheduler
     if config["TRAINER"].get("scheduler", None):
-        config["TRAINER"]["scheduler"].update({"epoch": config["TRAINER"]["n_epochs"]})
+        config["TRAINER"]["scheduler"].update({"epochs": config["TRAINER"]["n_epochs"]})
         scheduler = get_scheduler(config["TRAINER"]["scheduler"], optimizer)
 
     # Loss
