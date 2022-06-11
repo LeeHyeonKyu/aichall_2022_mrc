@@ -7,6 +7,8 @@ https://towardsdatascience.com/how-to-fine-tune-a-q-a-transformer-86f91ec92997
 """
 
 import os
+from copy import deepcopy
+from tqdm import tqdm
 
 import numpy as np
 import torch
@@ -17,7 +19,7 @@ from modules.utils import load_json
 
 class QADataset(Dataset):
     def __init__(
-        self, data_dir: str, tokenizer, max_seq_len: int, mode="train", debug=False
+        self, data_dir: str, tokenizer, max_seq_len: int, mode="train", debug=False, aug=False,
     ):
         self.mode = mode
         self.data = load_json(data_dir)
@@ -26,6 +28,7 @@ class QADataset(Dataset):
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
         self.debug = debug
+        self.aug = aug
         if mode == "test":
             self.encodings, self.question_ids = self.preprocess()
         else:
@@ -64,6 +67,25 @@ class QADataset(Dataset):
 
             return encodings, answers
 
+    def question_shuffle_augmentation(self):
+        for group in self.data['data']:
+            aug_questions = []
+            content_id = group['content_id']
+            for passage in group['paragraphs']:
+                for qa in passage['qas']:
+                    if not qa['is_impossible']:
+                        aug_qa = deepcopy(qa)
+                        aug_qa['answers'] = []
+                        aug_qa['is_impossible'] = True
+                        aug_questions.append(aug_qa)
+            
+            for passage in group['paragraphs']:
+                first_qa = passage['qas'][0]
+                if not first_qa['is_impossible']:
+                    for aug_qa in aug_questions:
+                        if aug_qa['question_id'] != first_qa['question_id']:
+                            passage['qas'].append(aug_qa)
+
     def read_squad(self):
         contexts = []
         questions = []
@@ -72,6 +94,8 @@ class QADataset(Dataset):
 
         # train - val split
         if self.mode == "train":
+            if self.aug:
+                self.question_shuffle_augmentation()
             self.data["data"] = self.data["data"][
                 : -1 * int(len(self.data["data"]) * 0.1)
             ]
@@ -82,7 +106,7 @@ class QADataset(Dataset):
 
         till = 100 if self.debug else len(self.data["data"])
 
-        for group in self.data["data"][:till]:
+        for group in tqdm(self.data["data"][:till]):
             for passage in group["paragraphs"]:
                 context = passage["context"]
                 for qa in passage["qas"]:
@@ -92,14 +116,13 @@ class QADataset(Dataset):
                         questions.append(question)
                         question_ids.append(qa["question_id"])
                     else:  # train or val
-                        for ans in qa["answers"]:
-                            contexts.append(context)
-                            questions.append(question)
+                        contexts.append(context)
+                        questions.append(question)
 
-                            if qa["is_impossible"]:
-                                answers.append({"text": "", "answer_start": -1})
-                            else:
-                                answers.append(ans)
+                        if qa["is_impossible"]:
+                            answers.append({"text": "", "answer_start": -1})
+                        else:
+                            answers.append(qa["answers"][0])
 
         # return formatted data lists
         return contexts, questions, answers, question_ids

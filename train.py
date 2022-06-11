@@ -58,6 +58,7 @@ random.seed(config["TRAINER"]["seed"])
 # GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = str(config["TRAINER"]["gpu"])
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 if __name__ == "__main__":
     """
@@ -86,6 +87,7 @@ if __name__ == "__main__":
             tokenizer=tokenizer,
             max_seq_len=tokenizer.model_max_length,
             mode="train",
+            aug=config["TRAINER"]["aug"] if 'aug' in config["TRAINER"].keys() else False
         )
         val_dataset = QADataset(
             data_dir=os.path.join(DATA_DIR, "train.json"),

@@ -21,6 +21,7 @@ TRAINER :
   gpu: 0
   seed: 42
   grad_accum: 4
+  aug: True
 
 DATALOADER:
   batch_size: 8
