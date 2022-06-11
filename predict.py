@@ -12,6 +12,7 @@ from transformers import ElectraTokenizerFast
 from models.utils import get_model
 from modules.datasets import QADataset
 from modules.utils import load_csv, load_yaml, save_csv, save_json, save_pickle
+from modules.preprocessing import get_tokenizer
 
 # Config
 PROJECT_DIR = os.path.dirname(__file__)
@@ -49,10 +50,8 @@ if __name__ == "__main__":
 
     # Load tokenizer
 
-    tokenizer_dict = {"ElectraTokenizerFast": ElectraTokenizerFast}
-
-    tokenizer = tokenizer_dict[train_config["TRAINER"]["tokenizer"]].from_pretrained(
-        train_config["TRAINER"]["pretrained"]
+    tokenizer = get_tokenizer(
+        train_config["TRAINER"]["tokenizer"], train_config["TRAINER"]["pretrained"]
     )
 
     # Load data

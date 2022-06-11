@@ -1,5 +1,5 @@
 DIRECTORY:
-  dataset: /aichall_2022_mrc/dataset
+  dataset: dataset
 
 AUGMENTATION:
   
@@ -20,10 +20,10 @@ TRAINER :
   amp: False
   gpu: 0
   seed: 42
-  grad_accum: 1
+  grad_accum: 4
 
 DATALOADER:
-  batch_size: 16
+  batch_size: 8
   num_workers: 0
   shuffle: True
   pin_memory: True
