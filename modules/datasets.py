@@ -41,21 +41,24 @@ class QADataset(Dataset):
         contexts, questions, answers, question_ids = self.read_squad()
         if self.mode == "test":
             encodings = self.tokenizer(
-                contexts,
                 questions,
-                truncation=True,
+                contexts,
+                truncation="only_second",
                 max_length=self.max_seq_len,
-                padding=True,
+                padding="max_length",
             )
             return encodings, question_ids
         else:  # train or val
             self.add_end_idx(answers, contexts)
             encodings = self.tokenizer(
-                contexts,
                 questions,
-                truncation=True,
+                contexts,
+                truncation="only_second",
                 max_length=self.max_seq_len,
-                padding=True,
+                stride=128,
+                return_overflowing_tokens=True,
+                return_offsets_mapping=True,
+                padding="max_length",
             )
             self.add_token_positions(encodings, answers)
 
@@ -120,38 +123,49 @@ class QADataset(Dataset):
                         answer["answer_end"] = end_idx + n
 
     def add_token_positions(self, encodings, answers):
-        # should use Fast tokenizer
         start_positions = []
         end_positions = []
-        for i in range(len(answers)):
-            if answers[i]["answer_start"] == -1:
-                # set [CLS] token as answer if is_impossible
-                start_positions.append(0)
-                end_positions.append(1)
+        
+        sample_mapping = encodings.pop("overflow_to_sample_mapping")
+        offset_mapping = encodings.pop("offset_mapping")
+
+        for i, offsets in enumerate(offset_mapping):
+            input_ids = encodings['input_ids'][i]
+            sequence_ids = encodings.sequence_ids(i)
+            cls_index = input_ids.index(self.tokenizer.cls_token_id)
+
+            sample_index = sample_mapping[i]
+            sample_answer = answers[i]
+            
+            if sample_answer['answer_start'] == -1:
+                start_positions.append(cls_index)
+                end_positions.append(cls_index)
             else:
-                start_positions.append(
-                    encodings.char_to_token(i, answers[i]["answer_start"])
-                )
+                start_char = sample_answer['answer_start']
+                end_char = sample_answer['answer_end']
 
-                assert "answer_end" in answers[i].keys(), f"no answer_end at {i}"
-                end_positions.append(
-                    encodings.char_to_token(i, answers[i]["answer_end"])
-                )
+                token_start_index = 0
+                while sequence_ids[token_start_index] != (1):
+                    token_start_index += 1
 
-            # answer passage truncated
-            if start_positions[-1] is None:
-                start_positions[-1] = self.tokenizer.model_max_length
-            # end position cannot be found, shift until found
-            shift = 1
-            while end_positions[-1] is None:
-                end_positions[-1] = encodings.char_to_token(
-                    i, answers[i]["answer_end"] - shift
-                )
-                shift += 1
-        # char-based -> token based
-        encodings.update(
-            {"start_positions": start_positions, "end_positions": end_positions}
-        )
+                token_end_index = len(input_ids) - 1
+                while sequence_ids[token_end_index] != (1):
+                    token_end_index -= 1
+
+                while (
+                    token_start_index < len(offsets)
+                    and offsets[token_start_index][0] <= start_char
+                ):
+                    token_start_index += 1
+                start_positions.append(token_start_index - 1)
+
+                while offsets[token_end_index][1] >= end_char:
+                    token_end_index -= 1
+                while offsets[token_end_index][0] < end_char:
+                    token_end_index += 1
+                end_positions.append(token_end_index)
+
+        encodings.update({'start_positions': start_positions, 'end_positions': end_positions})
 
 
 if __name__ == "__main__":
