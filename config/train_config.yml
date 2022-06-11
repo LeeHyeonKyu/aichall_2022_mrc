@@ -7,22 +7,23 @@ TRAINER :
   debug: False
   tokenizer: AutoTokenizer
   model: RobertaForQuestionAnswering
-  pretrained: klue/roberta-large
+  pretrained: klue/roberta-base
   optimizer: adamw
-  learning_rate: 5.0e-4
+  learning_rate: 5.0e-5
   loss: crossentropy
   metric:
     - accuracy
   n_epochs: 20
   early_stopping_target: val_loss
-  early_stopping_patience: 10
+  early_stopping_patience: 3
   early_stopping_mode: min
   amp: False
   gpu: 0
   seed: 42
+  grad_accum: 1
 
 DATALOADER:
-  batch_size: 16 
+  batch_size: 16
   num_workers: 0
   shuffle: True
   pin_memory: True
@@ -31,7 +32,7 @@ DATALOADER:
 LOGGER:
   wandb:
     use: True
-    username: yuuraa
+    username: hkl
     project_serial: aichallenge_2022
   logging_interval: 200
   plot:

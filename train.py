@@ -179,6 +179,7 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
         amp=amp if config["TRAINER"]["amp"] else None,
         interval=config["LOGGER"]["logging_interval"],
+        grad_accum=config["TRAINER"]["grad_accum"] if "grad_accum" in config["TRAINER"].keys() else 1
     )
 
     """
