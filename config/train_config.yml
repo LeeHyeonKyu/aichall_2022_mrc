@@ -33,7 +33,7 @@ DATALOADER:
 LOGGER:
   wandb:
     use: True
-    username: hkl
+    username: team-ikyo
     project_serial: aichallenge_2022
   logging_interval: 200
   plot:

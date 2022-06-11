@@ -7,6 +7,7 @@ https://towardsdatascience.com/how-to-fine-tune-a-q-a-transformer-86f91ec92997
 """
 
 import os
+import random
 from copy import deepcopy
 from tqdm import tqdm
 
@@ -67,8 +68,8 @@ class QADataset(Dataset):
 
             return encodings, answers
 
-    def question_shuffle_augmentation(self):
-        for group in self.data['data']:
+    def question_shuffle_augmentation(self, dataset):
+        for group in dataset['data']:
             aug_questions = []
             content_id = group['content_id']
             for passage in group['paragraphs']:
@@ -82,9 +83,11 @@ class QADataset(Dataset):
             for passage in group['paragraphs']:
                 first_qa = passage['qas'][0]
                 if not first_qa['is_impossible']:
-                    for aug_qa in aug_questions:
+                    random_aug_qa = random.sample(aug_questions, k=min(2, len(aug_questions)))
+                    for aug_qa in random_aug_qa:
                         if aug_qa['question_id'] != first_qa['question_id']:
                             passage['qas'].append(aug_qa)
+        return dataset
 
     def read_squad(self):
         contexts = []
@@ -95,7 +98,7 @@ class QADataset(Dataset):
         # train - val split
         if self.mode == "train":
             if self.aug:
-                self.question_shuffle_augmentation()
+                self.data = self.question_shuffle_augmentation(self.data)
             self.data["data"] = self.data["data"][
                 : -1 * int(len(self.data["data"]) * 0.1)
             ]
