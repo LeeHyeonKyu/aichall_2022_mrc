@@ -27,15 +27,21 @@ class QADataset(Dataset):
         self.max_seq_len = max_seq_len
         self.debug = debug
         if mode == "test":
-            self.encodings, self.question_ids = self.preprocess()
+            self.encodings, self.question_ids, self.contexts = self.preprocess()
         else:
-            self.encodings, self.answers = self.preprocess()
+            self.encodings, self.answers, self.contexts = self.preprocess()
 
     def __len__(self):
         return len(self.encodings.input_ids)
 
     def __getitem__(self, index: int):
-        return {key: torch.tensor(val[index]) for key, val in self.encodings.items()}
+        item = {key: torch.tensor(val[index]) for key, val in self.encodings.items()}
+        item["context"] = self.contexts[index]
+        if self.mode == "test":
+            item["question_id"] = self.question_ids[index]
+        else:
+            item["answer"] = self.answers[index]["text"]
+        return item
 
     def preprocess(self):
         contexts, questions, answers, question_ids = self.read_squad()
@@ -47,7 +53,7 @@ class QADataset(Dataset):
                 max_length=self.max_seq_len,
                 padding="max_length",
             )
-            return encodings, question_ids
+            return encodings, question_ids, contexts
         else:  # train or val
             self.add_end_idx(answers, contexts)
             encodings = self.tokenizer(
@@ -62,7 +68,7 @@ class QADataset(Dataset):
             )
             self.add_token_positions(encodings, answers)
 
-            return encodings, answers
+            return encodings, answers, contexts
 
     def read_squad(self):
         contexts = []
@@ -125,24 +131,24 @@ class QADataset(Dataset):
     def add_token_positions(self, encodings, answers):
         start_positions = []
         end_positions = []
-        
+
         sample_mapping = encodings.pop("overflow_to_sample_mapping")
         offset_mapping = encodings.pop("offset_mapping")
 
         for i, offsets in enumerate(offset_mapping):
-            input_ids = encodings['input_ids'][i]
+            input_ids = encodings["input_ids"][i]
             sequence_ids = encodings.sequence_ids(i)
             cls_index = input_ids.index(self.tokenizer.cls_token_id)
 
             sample_index = sample_mapping[i]
             sample_answer = answers[i]
-            
-            if sample_answer['answer_start'] == -1:
+
+            if sample_answer["answer_start"] == -1:
                 start_positions.append(cls_index)
                 end_positions.append(cls_index)
             else:
-                start_char = sample_answer['answer_start']
-                end_char = sample_answer['answer_end']
+                start_char = sample_answer["answer_start"]
+                end_char = sample_answer["answer_end"]
 
                 token_start_index = 0
                 while sequence_ids[token_start_index] != (1):
@@ -165,7 +171,9 @@ class QADataset(Dataset):
                     token_end_index += 1
                 end_positions.append(token_end_index)
 
-        encodings.update({'start_positions': start_positions, 'end_positions': end_positions})
+        encodings.update(
+            {"start_positions": start_positions, "end_positions": end_positions}
+        )
 
 
 if __name__ == "__main__":
