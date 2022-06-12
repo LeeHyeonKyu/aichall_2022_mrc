@@ -6,7 +6,7 @@ AUGMENTATION:
 TRAINER :
   debug: False
   tokenizer: AutoTokenizer
-  model: RobertaForQuestionAnswering
+  model: Conv
   pretrained: klue/roberta-base
   optimizer: adamw
   learning_rate: 5.0e-5

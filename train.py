@@ -45,7 +45,7 @@ os.makedirs(RECORDER_DIR, exist_ok=True)
 # Data directory
 DATA_DIR = config["DIRECTORY"]["dataset"]
 PREPROCESSED_DIR = os.path.join(
-    DATA_DIR, "preprocessed", config["TRAINER"]["pretrained"]
+    DATA_DIR, "preprocessed" #, config["TRAINER"]["pretrained"]
 )
 
 # Seed
@@ -77,9 +77,16 @@ if __name__ == "__main__":
     )
 
     # Load Dataset
-    if not DEBUG and os.path.isfile(os.path.join(PREPROCESSED_DIR, "train_dataset.pt")):
-        train_dataset = torch.load(os.path.join(PREPROCESSED_DIR, "train_dataset.pt"))
-        val_dataset = torch.load(os.path.join(PREPROCESSED_DIR, "val_dataset.pt"))
+    train_file_name = "train_dataset.pt"
+    val_file_name = "val_dataset.pt"
+    data_aug = config["TRAINER"]["aug"] if 'aug' in config["TRAINER"].keys() else False
+    if data_aug:
+        train_file_name = "train_dataset_aug.pt"
+        val_file_name = "val_dataset_aug.pt"
+
+    if not DEBUG and os.path.isfile(os.path.join(PREPROCESSED_DIR, train_file_name)):
+        train_dataset = torch.load(os.path.join(PREPROCESSED_DIR, train_file_name))
+        val_dataset = torch.load(os.path.join(PREPROCESSED_DIR, val_file_name))
         logger.info("loaded existing .pt")
     else:
         train_dataset = QADataset(
@@ -87,7 +94,7 @@ if __name__ == "__main__":
             tokenizer=tokenizer,
             max_seq_len=tokenizer.model_max_length,
             mode="train",
-            aug=config["TRAINER"]["aug"] if 'aug' in config["TRAINER"].keys() else False
+            aug=data_aug
         )
         val_dataset = QADataset(
             data_dir=os.path.join(DATA_DIR, "train.json"),
@@ -98,9 +105,9 @@ if __name__ == "__main__":
         if not DEBUG:
             os.makedirs(PREPROCESSED_DIR, exist_ok=True)
             torch.save(
-                train_dataset, os.path.join(PREPROCESSED_DIR, "train_dataset.pt")
+                train_dataset, os.path.join(PREPROCESSED_DIR, train_file_name)
             )
-            torch.save(val_dataset, os.path.join(PREPROCESSED_DIR, "val_dataset.pt"))
+            torch.save(val_dataset, os.path.join(PREPROCESSED_DIR, val_file_name))
         logger.info("loaded data, created .pt")
 
     if DEBUG:
@@ -150,7 +157,7 @@ if __name__ == "__main__":
     )
 
     # Loss
-    loss = get_loss(loss_name=config["TRAINER"]["loss"])
+    loss_fn = get_loss(loss_name=config["TRAINER"]["loss"], ignore_index=tokenizer.pad_token_id)
 
     # Metric
     metrics = {
@@ -174,7 +181,7 @@ if __name__ == "__main__":
     trainer = Trainer(
         model=model,
         optimizer=optimizer,
-        loss=loss,
+        loss_fn=loss_fn,
         metrics=metrics,
         device=device,
         logger=logger,
