@@ -9,7 +9,7 @@ TRAINER :
   model: RobertaForQuestionAnswering
   pretrained: klue/roberta-large
   optimizer: adamw
-  learning_rate: 5.0e-4
+  learning_rate: 1.0e-6
   loss: crossentropy
   metric:
     - accuracy
@@ -31,7 +31,7 @@ DATALOADER:
 LOGGER:
   wandb:
     use: True
-    username: yuuraa
+    username: team-ikyo
     project_serial: aichallenge_2022
   logging_interval: 200
   plot:
