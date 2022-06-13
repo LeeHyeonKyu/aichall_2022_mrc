@@ -157,7 +157,7 @@ if __name__ == "__main__":
     )
 
     # Loss
-    loss_fn = get_loss(loss_name=config["TRAINER"]["loss"], ignore_index=tokenizer.pad_token_id)
+    loss_fn = get_loss(loss_name=config["TRAINER"]["loss"])
 
     # Metric
     metrics = {

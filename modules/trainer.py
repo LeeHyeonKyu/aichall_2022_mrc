@@ -68,7 +68,7 @@ class Trainer:
                     token_type_ids=batch["token_type_ids"].to(self.device) if "token_type_ids" in batch.keys() else None
                 )
 
-                loss = cal_loss(self.loss_fn, start_positions, end_positions, outputs.start_logits, outputs.end_logits)
+                loss = cal_loss(start_positions, end_positions, outputs.start_logits, outputs.end_logits)
                 # start_score = outputs.start_logits
                 # end_score = outputs.end_logits
 
