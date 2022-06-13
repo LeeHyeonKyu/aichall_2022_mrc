@@ -31,15 +31,22 @@ class QADataset(Dataset):
         self.debug = debug
         self.aug = aug
         if mode == "test":
-            self.encodings, self.question_ids = self.preprocess()
+            self.encodings, self.question_ids, self.contexts = self.preprocess()
         else:
-            self.encodings, self.answers = self.preprocess()
+            self.encodings, self.answers, self.contexts = self.preprocess()
 
     def __len__(self):
         return len(self.encodings.input_ids)
 
     def __getitem__(self, index: int):
-        return {key: torch.tensor(val[index]) for key, val in self.encodings.items()}
+        # return {key: torch.tensor(val[index]) for key, val in self.encodings.items()}
+        item = {key: torch.tensor(val[index]) for key, val in self.encodings.items()}
+        item["context"] = self.contexts[index]
+        if self.mode == "test":
+            item["question_id"] = self.question_ids[index]
+        else:
+            item["answer"] = self.answers[index]["text"]
+        return item
 
     def preprocess(self):
         contexts, questions, answers, question_ids = self.read_squad()
@@ -51,7 +58,7 @@ class QADataset(Dataset):
                 max_length=self.max_seq_len,
                 padding="max_length",
             )
-            return encodings, question_ids
+            return encodings, question_ids, contexts
         else:  # train or val
             self.add_end_idx(answers, contexts)
             encodings = self.tokenizer(
@@ -66,7 +73,7 @@ class QADataset(Dataset):
             )
             self.add_token_positions(encodings, answers)
 
-            return encodings, answers
+            return encodings, answers, contexts
 
     def question_shuffle_augmentation(self, dataset):
         for group in dataset['data']:

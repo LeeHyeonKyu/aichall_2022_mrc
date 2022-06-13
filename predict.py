@@ -1,4 +1,5 @@
 import os
+import re
 import random
 from datetime import datetime, timedelta, timezone
 
@@ -59,7 +60,7 @@ if __name__ == "__main__":
     test_dataset = QADataset(
         data_dir=os.path.join(DATA_DIR, "test.json"),
         tokenizer=tokenizer,
-        max_seq_len=512,
+        max_seq_len=tokenizer.model_max_length,
         mode="test",
     )
 
@@ -98,37 +99,106 @@ if __name__ == "__main__":
     model.eval()
     pred_df = load_csv(os.path.join(DATA_DIR, "sample_submission.csv"))
 
-    for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
-        input_ids = batch["input_ids"].to(device)
-        attention_mask = batch["attention_mask"].to(device)
+    unk_token = tokenizer.unk_token
+    sep_token = tokenizer.cls_token
+    cls_token = tokenizer.sep_token
+    with torch.set_grad_enabled(False):
+        for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            context = batch["context"]
+            q_ids = batch["question_id"]
 
-        # Inference
-        outputs = model(input_ids, attention_mask=attention_mask)
+            # Inference
+            outputs = model(input_ids, attention_mask=attention_mask)
 
-        start_score = outputs.start_logits
-        end_score = outputs.end_logits
+            start_score = outputs.start_logits
+            end_score = outputs.end_logits
 
-        start_idx = torch.argmax(start_score, dim=1).cpu().tolist()
-        end_idx = torch.argmax(end_score, dim=1).cpu().tolist()
+            start_idxes = torch.argmax(start_score, dim=1).cpu().tolist()
+            end_idxes = torch.argmax(end_score, dim=1).cpu().tolist()
 
-        y_pred = []
-        for i in range(len(input_ids)):
-            if start_idx[i] > end_idx[i]:
-                output = ""
+            y_pred = []
+            for cont, txt, start_idx, end_idx in zip(
+                context, input_ids, start_idxes, end_idxes
+            ):
+                if start_idx > end_idx:
+                    ans_txt = ""
 
-            ans_txt = tokenizer.decode(input_ids[i][start_idx[i] : end_idx[i]]).replace(
-                "#", ""
-            )
+                pred_txt = txt[start_idx:end_idx]
+                ans_txt = tokenizer.decode(pred_txt)
+                if ans_txt == cls_token:
+                    ans_txt == ""
+                elif "#" in ans_txt:
+                    ans_txt = ans_txt.replace("#", "")
+                elif unk_token in ans_txt:
+                    front_txt = tokenizer.decode(txt[:start_idx])
+                    front_txt = front_txt.split(sep_token)[-1]
+                    temp_cont = cont.strip()
+                    for txts in front_txt.split(unk_token):
+                        for txt in list(txts):
+                            txt = txt.replace("#", "").strip()
+                            if txt:
+                                temp_cont_list = temp_cont.split(txt)
+                                temp_cont = txt.join(temp_cont_list[1:])
 
-            if ans_txt == "[CLS]":
-                ans_txt == ""
+                    ans_txt = ""
+                    offset_mapping = tokenizer(
+                        temp_cont, add_special_tokens=False, return_offsets_mapping=True
+                    )["offset_mapping"][: len(pred_txt)]
+                    for str_idx, end_idx in offset_mapping:
+                        ans_txt += temp_cont[str_idx:end_idx]
 
-            y_pred.append(ans_txt)
+                """
+                ʻ미래의연구자ʼ는  /  미래의 연구자
+                ʻ편리한세상ʼ에서는  /  편리한 세상
+                ʻ위험인자평가서  /  위험인자 평가서
+                ➄시료충진의  /  시료충진
+                epost™  /  epost
+                """
+                ans_txt = re.sub("ʻ|ʼ|➄|™", "", ans_txt)
 
-        q_end_idx = BATCH_SIZE * batch_index + len(y_pred)
-        for q_id, pred in zip(
-            question_ids[BATCH_SIZE * batch_index : q_end_idx], y_pred
-        ):
-            pred_df.loc[pred_df["question_id"] == q_id, "answer_text"] = pred
+                y_pred.append(ans_txt)
 
-    save_csv(os.path.join(PREDICT_DIR, "prediction.csv"), pred_df)
+            for q_id, pred in zip(q_ids, y_pred):
+                pred_df.loc[pred_df["question_id"] == q_id, "answer_text"] = pred
+    save_path = os.path.join(PREDICT_DIR, "prediction.csv")
+    print(save_path)
+    save_csv(save_path, pred_df)
+
+
+
+    # for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
+    #     input_ids = batch["input_ids"].to(device)
+    #     attention_mask = batch["attention_mask"].to(device)
+
+    #     # Inference
+    #     outputs = model(input_ids, attention_mask=attention_mask)
+
+    #     start_score = outputs.start_logits
+    #     end_score = outputs.end_logits
+
+    #     start_idx = torch.argmax(start_score, dim=1).cpu().tolist()
+    #     end_idx = torch.argmax(end_score, dim=1).cpu().tolist()
+
+    #     y_pred = []
+    #     for i in range(len(input_ids)):
+    #         if start_idx[i] > end_idx[i]:
+    #             output = ""
+
+    #         ans_txt = tokenizer.decode(input_ids[i][start_idx[i] : end_idx[i]]).replace(
+    #             "#", ""
+    #         )
+
+    #         if ans_txt == "[CLS]":
+    #             ans_txt == ""
+
+    #         y_pred.append(ans_txt)
+
+    #     q_end_idx = BATCH_SIZE * batch_index + len(y_pred)
+    #     for q_id, pred in zip(
+    #         question_ids[BATCH_SIZE * batch_index : q_end_idx], y_pred
+    #     ):
+    #         pred_df.loc[pred_df["question_id"] == q_id, "answer_text"] = pred
+
+    # save_csv(os.path.join(PREDICT_DIR, "prediction.csv"), pred_df)

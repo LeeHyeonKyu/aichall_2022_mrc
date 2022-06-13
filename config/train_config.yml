@@ -20,11 +20,11 @@ TRAINER :
   amp: False
   gpu: 0
   seed: 42
-  grad_accum: 32
+  grad_accum: 8
   aug: True
 
 DATALOADER:
-  batch_size: 1
+  batch_size: 8
   num_workers: 0
   shuffle: True
   pin_memory: True
