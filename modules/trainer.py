@@ -5,33 +5,35 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
-
 # from apex import amp
 
+from modules.losses import cal_loss
 
 class Trainer:
     def __init__(
         self,
         model,
         optimizer,
-        loss,
+        loss_fn,
         metrics,
         device,
         logger,
         amp,
         tokenizer,
         interval=100,
+        grad_accum=1
     ):
 
         self.model = model
         self.optimizer = optimizer
-        self.loss = loss
+        self.loss_fn = loss_fn
         self.metrics = metrics
         self.device = device
         self.logger = logger
         self.amp = amp
         self.interval = interval
         self.tokenizer = tokenizer
+        self.grad_accum = grad_accum
 
         # History
         self.loss_sum = 0  # Epoch loss sum
@@ -49,7 +51,7 @@ class Trainer:
             for batch_index, batch in enumerate(tqdm(dataloader, leave=True)):
 
                 # initialize calculated gradients (from prev step)
-                self.optimizer.zero_grad()
+                # self.optimizer.zero_grad()
                 # pull all the tensor batches required for training
                 input_ids = batch["input_ids"].to(self.device)
                 attention_mask = batch["attention_mask"].to(self.device)
@@ -63,17 +65,18 @@ class Trainer:
                     attention_mask=attention_mask,
                     start_positions=start_positions,
                     end_positions=end_positions,
+                    token_type_ids=batch["token_type_ids"].to(self.device) if "token_type_ids" in batch.keys() else None
                 )
 
-                loss = outputs.loss
-                start_score = outputs.start_logits
-                end_score = outputs.end_logits
+                loss = cal_loss(start_positions, end_positions, outputs.start_logits, outputs.end_logits)
+                # start_score = outputs.start_logits
+                # end_score = outputs.end_logits
 
-                start_idx = torch.argmax(start_score, dim=1).cpu().tolist()
-                end_idx = torch.argmax(end_score, dim=1).cpu().tolist()
+                start_idx = torch.argmax(outputs.start_logits, dim=1).cpu().tolist()
+                end_idx = torch.argmax(outputs.end_logits, dim=1).cpu().tolist()
 
                 # Update
-                if mode == "train":
+                if mode == "train" and batch_index % self.grad_accum == 0:
 
                     if self.amp is None:
                         loss.backward()
@@ -83,8 +86,7 @@ class Trainer:
                             scaled_loss.backward()
 
                     self.optimizer.step()
-
-                    # self.optimizer.zero_grad()
+                    self.optimizer.zero_grad()
 
                 elif mode in ["val", "test"]:
                     pass

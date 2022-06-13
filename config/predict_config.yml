@@ -1,8 +1,8 @@
 DIRECTORY:
-  dataset: ../dataset
+  dataset: dataset
 
 TRAIN:
-  train_serial: 'YYYYMMDD_SERIAL'
+  train_serial: '20220612_215920'
 
 PREDICT:
   seed: 42

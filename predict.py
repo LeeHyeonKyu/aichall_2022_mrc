@@ -1,6 +1,6 @@
 import os
-import random
 import re
+import random
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
@@ -8,11 +8,12 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from transformers import ElectraTokenizerFast
 
 from models.utils import get_model
 from modules.datasets import QADataset
-from modules.preprocessing import get_tokenizer
 from modules.utils import load_csv, load_yaml, save_csv, save_json, save_pickle
+from modules.preprocessing import get_tokenizer
 
 # Config
 PROJECT_DIR = os.path.dirname(__file__)
@@ -49,11 +50,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if __name__ == "__main__":
 
     # Load tokenizer
+
     tokenizer = get_tokenizer(
         train_config["TRAINER"]["tokenizer"], train_config["TRAINER"]["pretrained"]
     )
 
     # Load data
+
     test_dataset = QADataset(
         data_dir=os.path.join(DATA_DIR, "test.json"),
         tokenizer=tokenizer,
@@ -76,6 +79,7 @@ if __name__ == "__main__":
 
     # Load model
     model_name = train_config["TRAINER"]["model"]
+    # model_args = train_config['MODEL'][model_name]
     model = get_model(
         model_name=model_name, pretrained=train_config["TRAINER"]["pretrained"]
     ).to(device)
@@ -95,9 +99,9 @@ if __name__ == "__main__":
     model.eval()
     pred_df = load_csv(os.path.join(DATA_DIR, "sample_submission.csv"))
 
-    unk_token = "[UNK]"
-    sep_token = "[SEP]"
-    cls_token = "[CLS]"
+    unk_token = tokenizer.unk_token
+    sep_token = tokenizer.cls_token
+    cls_token = tokenizer.sep_token
     with torch.set_grad_enabled(False):
         for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
             input_ids = batch["input_ids"].to(device)
