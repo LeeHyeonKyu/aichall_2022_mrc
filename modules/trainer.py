@@ -1,4 +1,5 @@
 import os
+import random
 from time import time
 
 import numpy as np
@@ -49,6 +50,9 @@ class Trainer:
             self.model.train() if mode == "train" else self.model.eval()
 
             for batch_index, batch in enumerate(tqdm(dataloader, leave=True)):
+
+                if mode == 'train':
+                    batch["input_ids"] = self.ramdom_masking(batch["input_ids"])
 
                 # initialize calculated gradients (from prev step)
                 # self.optimizer.zero_grad()
@@ -134,3 +138,12 @@ class Trainer:
         self.y = list()
         self.score_dict = dict()
         self.elapsed_time = 0
+
+    def ramdom_masking(self, input_ids, threshold = 0.05):
+        for sample_idx, sample_input_id in enumerate(input_ids):
+            for token_idx, token in enumerate(sample_input_id):
+                if token == self.tokenizer.sep_token_id or token == self.tokenizer.eos_token_id:
+                    break
+                if token != self.tokenizer.cls_token_id and token != self.tokenizer.bos_token_id and random.random() < threshold:
+                    input_ids[sample_idx][token_idx] = self.tokenizer.mask_token_id
+        return input_ids

@@ -56,6 +56,7 @@ class QADataset(Dataset):
                 contexts,
                 truncation="only_second",
                 max_length=self.max_seq_len,
+                return_offsets_mapping=True,
                 padding="max_length",
             )
             return encodings, question_ids, contexts
@@ -159,8 +160,8 @@ class QADataset(Dataset):
         start_positions = []
         end_positions = []
         
-        sample_mapping = encodings.pop("overflow_to_sample_mapping")
-        offset_mapping = encodings.pop("offset_mapping")
+        sample_mapping = encodings["overflow_to_sample_mapping"]
+        offset_mapping = encodings["offset_mapping"]
 
         for i, offsets in enumerate(offset_mapping):
             input_ids = encodings['input_ids'][i]
@@ -194,7 +195,7 @@ class QADataset(Dataset):
 
                 while offsets[token_end_index][1] >= end_char:
                     token_end_index -= 1
-                while offsets[token_end_index][0] < end_char:
+                while token_end_index < len(input_ids) and offsets[token_end_index][0] < end_char:
                     token_end_index += 1
                 end_positions.append(token_end_index)
 
