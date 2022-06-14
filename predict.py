@@ -173,38 +173,3 @@ if __name__ == "__main__":
     save_path = os.path.join(PREDICT_DIR, "prediction.csv")
     print(save_path)
     save_csv(save_path, pred_df)
-
-    # for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
-    #     input_ids = batch["input_ids"].to(device)
-    #     attention_mask = batch["attention_mask"].to(device)
-
-    #     # Inference
-    #     outputs = model(input_ids, attention_mask=attention_mask)
-
-    #     start_score = outputs.start_logits
-    #     end_score = outputs.end_logits
-
-    #     start_idx = torch.argmax(start_score, dim=1).cpu().tolist()
-    #     end_idx = torch.argmax(end_score, dim=1).cpu().tolist()
-
-    #     y_pred = []
-    #     for i in range(len(input_ids)):
-    #         if start_idx[i] > end_idx[i]:
-    #             output = ""
-
-    #         ans_txt = tokenizer.decode(input_ids[i][start_idx[i] : end_idx[i]]).replace(
-    #             "#", ""
-    #         )
-
-    #         if ans_txt == "[CLS]":
-    #             ans_txt == ""
-
-    #         y_pred.append(ans_txt)
-
-    #     q_end_idx = BATCH_SIZE * batch_index + len(y_pred)
-    #     for q_id, pred in zip(
-    #         question_ids[BATCH_SIZE * batch_index : q_end_idx], y_pred
-    #     ):
-    #         pred_df.loc[pred_df["question_id"] == q_id, "answer_text"] = pred
-
-    # save_csv(os.path.join(PREDICT_DIR, "prediction.csv"), pred_df)

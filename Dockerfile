@@ -18,4 +18,5 @@ RUN apt-get update && apt-get install -y git ninja-build libglib2.0-0 libsm6 lib
 
 WORKDIR /aichall_2022_mrc
 RUN pip3 install transformers
+RUN curl -s https://raw.githubusercontent.com/teddylee777/machine-learning/master/99-Misc/01-Colab/mecab-colab.sh | bash
 RUN git config --global --add safe.directory /aichall_2022_mrc

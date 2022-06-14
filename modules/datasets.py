@@ -39,7 +39,6 @@ class QADataset(Dataset):
         return len(self.encodings.input_ids)
 
     def __getitem__(self, index: int):
-        # return {key: torch.tensor(val[index]) for key, val in self.encodings.items()}
         item = {key: torch.tensor(val[index]) for key, val in self.encodings.items()}
         item["context"] = self.contexts[index]
         if self.mode == "test":
@@ -75,7 +74,7 @@ class QADataset(Dataset):
             self.add_token_positions(encodings, answers)
 
             return encodings, answers, contexts
-
+          
     def question_shuffle_augmentation(self, dataset):
         for group in dataset['data']:
             aug_questions = []
@@ -164,19 +163,19 @@ class QADataset(Dataset):
         offset_mapping = encodings["offset_mapping"]
 
         for i, offsets in enumerate(offset_mapping):
-            input_ids = encodings['input_ids'][i]
+            input_ids = encodings["input_ids"][i]
             sequence_ids = encodings.sequence_ids(i)
             cls_index = input_ids.index(self.tokenizer.cls_token_id)
 
             sample_index = sample_mapping[i]
             sample_answer = answers[i]
-            
-            if sample_answer['answer_start'] == -1:
+
+            if sample_answer["answer_start"] == -1:
                 start_positions.append(cls_index)
                 end_positions.append(cls_index)
             else:
-                start_char = sample_answer['answer_start']
-                end_char = sample_answer['answer_end']
+                start_char = sample_answer["answer_start"]
+                end_char = sample_answer["answer_end"]
 
                 token_start_index = 0
                 while sequence_ids[token_start_index] != (1):
@@ -199,7 +198,9 @@ class QADataset(Dataset):
                     token_end_index += 1
                 end_positions.append(token_end_index)
 
-        encodings.update({'start_positions': start_positions, 'end_positions': end_positions})
+        encodings.update(
+            {"start_positions": start_positions, "end_positions": end_positions}
+        )
 
 
 if __name__ == "__main__":
