@@ -1,5 +1,5 @@
 DIRECTORY:
-  dataset: /aichall_2022_mrc/dataset
+  dataset: dataset
 
 AUGMENTATION:
   
