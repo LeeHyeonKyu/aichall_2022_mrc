@@ -6,10 +6,10 @@ AUGMENTATION:
 TRAINER :
   debug: False
   tokenizer: AutoTokenizer
-  model: Conv # AutoModelForQuestionAnswering # Conv # QAConv
+  model: QAConv # AutoModelForQuestionAnswering # Conv # QAConv
   pretrained: klue/roberta-base # klue/roberta-base #xlm-roberta-large
   optimizer: adamw
-  learning_rate: 1.0e-5
+  learning_rate: 1.0e-6
   loss: crossentropy
   metric:
     - accuracy
