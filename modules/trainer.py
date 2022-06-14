@@ -1,6 +1,8 @@
 import os
 import random
+import pickle
 from time import time
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -147,3 +149,37 @@ class Trainer:
                 if token != self.tokenizer.cls_token_id and token != self.tokenizer.bos_token_id and random.random() < threshold:
                     input_ids[sample_idx][token_idx] = self.tokenizer.mask_token_id
         return input_ids
+
+def apply_train_distribution(start_score, end_score, n_best=5, smooth=100, use_fn=True):
+    if not use_fn:
+        start_idxes = torch.argmax(start_score, dim=1).tolist()
+        end_idxes = torch.argmax(end_score, dim=1).tolist()
+    
+    else:
+        diff_dict = defaultdict(lambda: -100)
+        with open('dataset/klue-roberta-distribution.pkl', 'rb') as f:
+            tmp = pickle.load(f)
+            for k, v in tmp.items():
+                diff_dict[k] = v
+
+        start_topk = torch.topk(start_score, n_best, axis=1)
+        end_topk = torch.topk(end_score, n_best, axis=1)
+
+        start_topk_val = start_topk.values.repeat_interleave(n_best, 1)
+        end_topk_val = end_topk.values.repeat(1, n_best)
+
+        start_topk_idxes = start_topk.indices.repeat_interleave(n_best, 1)
+        end_topk_idxes = end_topk.indices.repeat(1, n_best)
+        end_start_diff = end_topk_idxes - start_topk_idxes
+        end_start_diff = end_start_diff.float()
+        end_start_diff.apply_(lambda x: diff_dict[x]/smooth)
+        
+        tot_logit = start_topk_val + end_topk_val + end_start_diff
+        tot_start_end_idx = torch.argmax(tot_logit, dim=1)
+
+        start_idxes, end_idxes = [], []
+        for start_idx, end_idx, start_end_idx in zip(start_topk_idxes.tolist(), end_topk_idxes.tolist(), tot_start_end_idx.tolist()):
+            start_idxes.append(start_idx[start_end_idx])
+            end_idxes.append(end_idx[start_end_idx])
+    
+    return start_idxes, end_idxes

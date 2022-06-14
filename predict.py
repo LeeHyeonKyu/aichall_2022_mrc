@@ -12,6 +12,7 @@ from transformers import ElectraTokenizerFast
 
 from models.utils import get_model
 from modules.datasets import QADataset
+from modules.trainer import apply_train_distribution
 from modules.utils import load_csv, load_yaml, save_csv, save_json, save_pickle
 from modules.preprocessing import get_tokenizer
 
@@ -109,11 +110,14 @@ if __name__ == "__main__":
             # Inference
             outputs = model(input_ids, attention_mask=attention_mask)
 
-            start_score = outputs.start_logits
-            end_score = outputs.end_logits
-
-            start_idxes = torch.argmax(start_score, dim=1).cpu().tolist()
-            end_idxes = torch.argmax(end_score, dim=1).cpu().tolist()
+            start_score = outputs.start_logits.detach().cpu()
+            end_score = outputs.end_logits.detach().cpu()
+            start_idxes, end_idxes = apply_train_distribution(
+                start_score, end_score, 
+                n_best=predict_config["PREDICT"]["distribution_n_best"], 
+                smooth=predict_config["PREDICT"]["distribution_smooth"], 
+                use_fn=predict_config["PREDICT"]["distribution_use"],
+            )
 
             y_pred = []
 
@@ -124,38 +128,6 @@ if __name__ == "__main__":
                     s = offsets[start_idx][0]
                     e = offsets[end_idx][0]
                     ans_txt = context[s:e]
-
-            # for cont, txt, start_idx, end_idx in zip(
-            #     context, input_ids, start_idxes, end_idxes
-            # ):
-            #     if start_idx > end_idx:
-            #         ans_txt = ""
-            #     pred_txt = txt[start_idx:end_idx]
-            #     ans_txt = tokenizer.decode(pred_txt)
-            #     if ans_txt == cls_token:
-            #         ans_txt == ""
-            #     elif "#" in ans_txt:
-            #         ans_txt = ans_txt.replace("#", "")
-            #     elif unk_token in ans_txt:
-            #         front_txt = tokenizer.decode(txt[:start_idx])
-            #         front_txt = front_txt.split(sep_token)[-1]
-            #         temp_cont = cont.strip()
-            #         for txts in front_txt.split(unk_token):
-            #             for txt in list(txts):
-            #                 txt = txt.replace("#", "").strip()
-            #                 if txt:
-            #                     temp_cont_list = temp_cont.split(txt)
-            #                     temp_cont = txt.join(temp_cont_list[1:])
-
-            #         ans_txt = ""
-            #         offset_mapping = tokenizer(
-            #             temp_cont, add_special_tokens=False, return_offsets_mapping=True
-            #         )["offset_mapping"][: len(pred_txt)]
-            #         for str_idx, end_idx in offset_mapping:
-            #             ans_txt += temp_cont[str_idx:end_idx]
-
-            #     if cls_token in ans_txt:
-            #         ans_txt == ""
 
                 """
                 ʻ미래의연구자ʼ는  /  미래의 연구자

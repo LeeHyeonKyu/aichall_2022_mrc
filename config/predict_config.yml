@@ -2,8 +2,11 @@ DIRECTORY:
   dataset: dataset
 
 TRAIN:
-  train_serial: '20220614_072042'
+  train_serial: 'random_mask'
 
 PREDICT:
   seed: 42
   gpu: 0
+  distribution_n_best: 5
+  distribution_smooth: 10
+  distribution_use: True
