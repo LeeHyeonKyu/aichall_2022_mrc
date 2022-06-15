@@ -152,7 +152,7 @@ class Trainer:
                     input_ids[sample_idx][token_idx] = self.tokenizer.mask_token_id
         return input_ids
 
-def apply_train_distribution(start_score, end_score, diff_dict, n_best=5, smooth=100, use_fn=True):
+def apply_train_distribution(start_score, end_score, diff_dict, n_best=5, smooth=10, use_fn=True):
     if not use_fn:
         start_idxes = torch.argmax(start_score, dim=1).tolist()
         end_idxes = torch.argmax(end_score, dim=1).tolist()

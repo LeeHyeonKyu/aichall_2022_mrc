@@ -2,12 +2,13 @@ DIRECTORY:
   dataset: dataset
 
 AUGMENTATION:
+  random_masking: True
   question_shuffle_aug: True
   pororo_aug: True
   gpt_aug: False
   
 TRAINER :
-  debug: True
+  debug: False
   tokenizer: AutoTokenizer
   model: SDS # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
   pretrained: klue/roberta-base # klue/roberta-base #large  #xlm-roberta-large #tau/splinter-base

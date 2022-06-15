@@ -45,7 +45,7 @@ class CustomQADataset(Dataset):
         return encoded_sample
 
     def preprocess(self, idx):
-        if self.mode=='train' and random.random() > 0.5 and (self.question_shuffle_aug or self.pororo_aug or self.gpt_aug):
+        if self.mode=='train' and random.random() > 0.2 and (self.question_shuffle_aug or self.pororo_aug or self.gpt_aug):
             question, context, answers = self.augmentation(idx)
         else:
             question, context, answers = self.dataset.loc[idx, 'question'], self.dataset.loc[idx, 'context'], self.dataset.loc[idx, 'answers']
