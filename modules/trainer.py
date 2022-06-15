@@ -11,6 +11,7 @@ from tqdm import tqdm
 # from apex import amp
 
 from modules.losses import cal_loss
+from modules.utils import load_json
 
 class Trainer:
     def __init__(
@@ -150,18 +151,11 @@ class Trainer:
                     input_ids[sample_idx][token_idx] = self.tokenizer.mask_token_id
         return input_ids
 
-def apply_train_distribution(start_score, end_score, n_best=5, smooth=100, use_fn=True):
+def apply_train_distribution(start_score, end_score, diff_dict, n_best=5, smooth=100, use_fn=True):
     if not use_fn:
         start_idxes = torch.argmax(start_score, dim=1).tolist()
         end_idxes = torch.argmax(end_score, dim=1).tolist()
-    
     else:
-        diff_dict = defaultdict(lambda: -100)
-        with open('dataset/klue-roberta-distribution.pkl', 'rb') as f:
-            tmp = pickle.load(f)
-            for k, v in tmp.items():
-                diff_dict[k] = v
-
         start_topk = torch.topk(start_score, n_best, axis=1)
         end_topk = torch.topk(end_score, n_best, axis=1)
 
@@ -183,3 +177,27 @@ def apply_train_distribution(start_score, end_score, n_best=5, smooth=100, use_f
             end_idxes.append(end_idx[start_end_idx])
     
     return start_idxes, end_idxes
+
+def get_token_distance_distribution(tokenizer, train_path):
+    train = load_json(train_path)
+
+    tmp_dict = defaultdict(int)
+    diff_dict = defaultdict(lambda: -100)
+    num_of_train_sample = 0
+
+    for group in train['data']:
+        for passage in group['paragraphs']:
+            for qa in passage['qas']:
+                answers = qa['answers']
+                if len(answers) > 0:
+                    answer = qa['answers'][0]['text']
+                    token_distance = len(tokenizer(answer, add_special_tokens=False)['input_ids'])
+                else:
+                    token_distance = 0
+                num_of_train_sample += 1
+                tmp_dict[token_distance] += 1
+
+    for k, v in tmp_dict.items():
+        diff_dict[k] = v/num_of_train_sample
+    
+    return diff_dict

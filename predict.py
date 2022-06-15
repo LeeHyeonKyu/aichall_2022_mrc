@@ -12,7 +12,7 @@ from transformers import ElectraTokenizerFast
 
 from models.utils import get_model
 from modules.datasets import QADataset
-from modules.trainer import apply_train_distribution
+from modules.trainer import apply_train_distribution, get_token_distance_distribution
 from modules.utils import load_csv, load_yaml, save_csv, save_json, save_pickle
 from modules.preprocessing import get_tokenizer
 
@@ -100,6 +100,12 @@ if __name__ == "__main__":
     model.eval()
     pred_df = load_csv(os.path.join(DATA_DIR, "sample_submission.csv"))
 
+    # get train token distance distribution
+    if predict_config["PREDICT"]["distribution_use"]:
+        diff_dict = get_token_distance_distribution(tokenizer, os.path.join(DATA_DIR, "train.json"))
+    else:
+        diff_dict = {}
+
     with torch.set_grad_enabled(False):
         for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
             input_ids = batch["input_ids"].to(device)
@@ -113,7 +119,9 @@ if __name__ == "__main__":
             start_score = outputs.start_logits.detach().cpu()
             end_score = outputs.end_logits.detach().cpu()
             start_idxes, end_idxes = apply_train_distribution(
-                start_score, end_score, 
+                start_score = start_score, 
+                end_score = end_score,
+                diff_dict = diff_dict,
                 n_best=predict_config["PREDICT"]["distribution_n_best"], 
                 smooth=predict_config["PREDICT"]["distribution_smooth"], 
                 use_fn=predict_config["PREDICT"]["distribution_use"],
