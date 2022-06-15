@@ -2,18 +2,21 @@ DIRECTORY:
   dataset: dataset
 
 AUGMENTATION:
+  question_shuffle_aug: True
+  pororo_aug: True
+  gpt_aug: False
   
 TRAINER :
-  debug: False
+  debug: True
   tokenizer: AutoTokenizer
-  model: QASDS # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
-  pretrained: klue/roberta-base # klue/roberta-base #xlm-roberta-large
+  model: SDS # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
+  pretrained: klue/roberta-base # klue/roberta-base #large  #xlm-roberta-large #tau/splinter-base
   optimizer: adamw
   learning_rate: 1.0e-6
   loss: crossentropy
   metric:
     - accuracy
-  n_epochs: 20
+  n_epochs: 50
   early_stopping_target: val_loss
   early_stopping_patience: 3
   early_stopping_mode: min
@@ -21,7 +24,6 @@ TRAINER :
   gpu: 0
   seed: 42
   grad_accum: 8
-  aug: True
 
 DATALOADER:
   batch_size: 8

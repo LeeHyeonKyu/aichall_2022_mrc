@@ -2,7 +2,7 @@ DIRECTORY:
   dataset: dataset
 
 TRAIN:
-  train_serial: 'random_mask'
+  train_serial: '20220616_024651'
 
 PREDICT:
   seed: 42

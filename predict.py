@@ -110,11 +110,12 @@ if __name__ == "__main__":
         for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
+            token_type_ids = batch["token_type_ids"].to(device) if "token_type_ids" in batch.keys() else None
             contexts = batch["context"]
             q_ids = batch["question_id"]
 
             # Inference
-            outputs = model(input_ids, attention_mask=attention_mask)
+            outputs = model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
 
             start_score = outputs.start_logits.detach().cpu()
             end_score = outputs.end_logits.detach().cpu()

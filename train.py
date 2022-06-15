@@ -10,7 +10,7 @@ import wandb
 from torch.utils.data import DataLoader
 
 from models.utils import get_model
-from modules.datasets import QADataset
+from modules.datasets import QADataset, CustomQADataset, json_to_df
 from modules.earlystoppers import EarlyStopper
 from modules.losses import get_loss
 from modules.metrics import get_metric
@@ -18,7 +18,7 @@ from modules.optimizers import get_optimizer
 from modules.preprocessing import get_tokenizer
 from modules.recorders import Recorder
 from modules.trainer import Trainer
-from modules.utils import get_logger, load_yaml, save_yaml
+from modules.utils import get_logger, load_yaml, save_yaml, save_pickle, load_pickle
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_cfg", type=str, default="train_config.yml")
@@ -77,46 +77,68 @@ if __name__ == "__main__":
     )
 
     # Load Dataset
-    train_file_name = "train_dataset.pt"
-    val_file_name = "val_dataset.pt"
-    data_aug = config["TRAINER"]["aug"] if 'aug' in config["TRAINER"].keys() else False
-    if data_aug:
-        train_file_name = "train_dataset_aug.pt"
-        val_file_name = "val_dataset_aug.pt"
 
+    # preprocessor
+    train_file_name = "train_dataset.pkl"
+    val_file_name = "val_dataset.pkl"
     if not DEBUG and os.path.isfile(os.path.join(PREPROCESSED_DIR, train_file_name)):
-        train_dataset = torch.load(os.path.join(PREPROCESSED_DIR, train_file_name))
-        val_dataset = torch.load(os.path.join(PREPROCESSED_DIR, val_file_name))
+        train_dataset = load_pickle(os.path.join(PREPROCESSED_DIR, train_file_name))
+        val_dataset = load_pickle(os.path.join(PREPROCESSED_DIR, val_file_name))
         logger.info("loaded existing .pt")
     else:
-        train_dataset = QADataset(
-            data_dir=os.path.join(DATA_DIR, "train.json"),
-            tokenizer=tokenizer,
-            max_seq_len=tokenizer.model_max_length,
-            mode="train",
-            aug=data_aug
+        file_name = 'sample.json' if DEBUG else "train.json"
+        df_dataset = json_to_df(
+            data_dir=os.path.join(DATA_DIR, file_name), 
+            mode='train',
+            pororo_dir=os.path.join(DATA_DIR, 'train_para_final.pkl'),
+            gpt_dir=None,
         )
-        val_dataset = QADataset(
-            data_dir=os.path.join(DATA_DIR, "train.json"),
-            tokenizer=tokenizer,
-            max_seq_len=tokenizer.model_max_length,
-            mode="val",
-        )
+        train_dataset = df_dataset[:-1 * int(len(df_dataset) * 0.1)]
+        val_dataset = df_dataset[-1 * int(len(df_dataset) * 0.1):]
+
         if not DEBUG:
             os.makedirs(PREPROCESSED_DIR, exist_ok=True)
-            torch.save(
-                train_dataset, os.path.join(PREPROCESSED_DIR, train_file_name)
+            save_pickle(
+                path=os.path.join(PREPROCESSED_DIR, train_file_name),
+                obj=train_dataset
             )
-            torch.save(val_dataset, os.path.join(PREPROCESSED_DIR, val_file_name))
-        logger.info("loaded data, created .pt")
+            save_pickle(
+                path=os.path.join(PREPROCESSED_DIR, val_file_name),
+                obj=val_dataset
+            )
+        logger.info("loaded data, created .pkl")
+
+    train_dataset = CustomQADataset(
+        dataset=train_dataset,
+        tokenizer=tokenizer,
+        max_seq_len=tokenizer.model_max_length,
+        mode='train',
+        question_shuffle_aug=config["AUGMENTATION"]["question_shuffle_aug"],
+        pororo_aug=config["AUGMENTATION"]["pororo_aug"],
+        gpt_aug=config["AUGMENTATION"]["gpt_aug"],
+    )
+    val_dataset = CustomQADataset(
+        dataset=val_dataset,
+        tokenizer=tokenizer,
+        max_seq_len=tokenizer.model_max_length,
+        mode='val',
+        question_shuffle_aug=False,
+        pororo_aug=False,
+        gpt_aug=False,
+    )
 
     if DEBUG:
-        print(len(train_dataset), len(val_dataset))
-        for i in range(10):
-            txt = train_dataset[i]["input_ids"]
-            start_idx = train_dataset[i]["start_positions"]
-            end_idx = train_dataset[i]["end_positions"]
-            print(tokenizer.decode(txt[start_idx:end_idx]))
+        print(f'train: {len(train_dataset)}, val: {len(val_dataset)}')
+        answers, decoded_answers = [], []
+        for i in range(len(train_dataset)):
+            tmp = train_dataset[i]
+            input_ids = tmp["input_ids"]
+            start_idx = tmp["start_positions"]
+            end_idx = tmp["end_positions"]
+            answers.append(tmp['answer_text'])
+            decoded_answers.append(tokenizer.decode(input_ids[start_idx:end_idx]))
+        print(f'answers: {answers}')
+        print(f'decoded: {decoded_answers}')
 
     # DataLoader
     train_dataloader = DataLoader(
@@ -242,6 +264,7 @@ if __name__ == "__main__":
             epoch_index=epoch_index,
             tokenizer=tokenizer,
             mode="train",
+            random_masking=config['AUGMENTATION']['random_masking']
         )
 
         row_dict["train_loss"] = trainer.loss_mean
@@ -263,6 +286,7 @@ if __name__ == "__main__":
             epoch_index=epoch_index,
             tokenizer=tokenizer,
             mode="val",
+            random_masking=False
         )
 
         row_dict["val_loss"] = trainer.loss_mean

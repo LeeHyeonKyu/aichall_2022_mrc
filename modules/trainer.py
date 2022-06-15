@@ -47,14 +47,14 @@ class Trainer:
         self.score_dict = dict()  # metric score
         self.elapsed_time = 0
 
-    def train(self, mode, dataloader, tokenizer, epoch_index=0):
+    def train(self, mode, dataloader, tokenizer, random_masking, epoch_index=0):
         with torch.set_grad_enabled(mode == "train"):
             start_timestamp = time()
             self.model.train() if mode == "train" else self.model.eval()
 
             for batch_index, batch in enumerate(tqdm(dataloader, leave=True)):
 
-                if mode == 'train':
+                if mode == 'train' and random_masking:
                     batch["input_ids"] = self.ramdom_masking(batch["input_ids"])
 
                 # initialize calculated gradients (from prev step)
@@ -64,6 +64,7 @@ class Trainer:
                 attention_mask = batch["attention_mask"].to(self.device)
                 start_positions = batch["start_positions"].to(self.device)
                 end_positions = batch["end_positions"].to(self.device)
+                token_type_ids = batch["token_type_ids"].to(self.device) if "token_type_ids" in batch.keys() else None
 
                 # train model on batch and return outputs (incl. loss)
                 # Inference
@@ -72,7 +73,7 @@ class Trainer:
                     attention_mask=attention_mask,
                     start_positions=start_positions,
                     end_positions=end_positions,
-                    token_type_ids=batch["token_type_ids"].to(self.device) if "token_type_ids" in batch.keys() else None
+                    token_type_ids=token_type_ids
                 )
 
                 loss = cal_loss(start_positions, end_positions, outputs.start_logits, outputs.end_logits)
