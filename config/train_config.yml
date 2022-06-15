@@ -5,7 +5,7 @@ AUGMENTATION:
   random_masking: True
   question_shuffle_aug: True
   pororo_aug: True
-  gpt_aug: False
+  gpt_aug: True
   
 TRAINER :
   debug: False

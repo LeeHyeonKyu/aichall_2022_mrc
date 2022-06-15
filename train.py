@@ -91,7 +91,7 @@ if __name__ == "__main__":
             data_dir=os.path.join(DATA_DIR, file_name), 
             mode='train',
             pororo_dir=os.path.join(DATA_DIR, 'train_para_final.pkl'),
-            gpt_dir=None,
+            gpt_dir=os.path.join(DATA_DIR, 'kogpt_para.pkl'),
         )
         train_dataset = df_dataset[:-1 * int(len(df_dataset) * 0.1)]
         val_dataset = df_dataset[-1 * int(len(df_dataset) * 0.1):]

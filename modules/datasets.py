@@ -72,7 +72,7 @@ class CustomQADataset(Dataset):
                 key = 'pororo_paraphrase_question'
             elif self.gpt_aug:
                 key = 'gpt_paraphrase_question'
-            question = sr_sample[key] if key == 'question' else random.choice(sr_sample[key])
+            question = random.choice(sr_sample[key]) if key == 'pororo_paraphrase_question' else sr_sample[key]
             context = sr_sample['context']
             answers = sr_sample['answers']
         else:
@@ -82,7 +82,7 @@ class CustomQADataset(Dataset):
                 key = 'pororo_paraphrase_question'
             elif self.gpt_aug:
                 key = 'gpt_paraphrase_question'
-            question = sr_sample[key] if key == 'question' else random.choice(sr_sample[key])
+            question = random.choice(sr_sample[key]) if key == 'pororo_paraphrase_question' else sr_sample[key]
             context = sr_sample['context']
             answers = sr_sample['answers']
 
@@ -319,11 +319,11 @@ class QADataset(Dataset):
             {"start_positions": start_positions, "end_positions": end_positions}
         )
 
-def json_to_df(data_dir, mode, pororo_dir=None, gpt_dir=None):
+def json_to_df(data_dir, mode, pororo_dir, gpt_dir):
     df_dataset = pd.DataFrame(columns=['question_id', 'question', 'paragraph_id', 'context', 'answers', 'is_impossible', 'content_id', 'pororo_paraphrase_question', 'gpt_paraphrase_question'])
     js_dataset = load_json(data_dir)
-    pororo_paraphrase_dataset = load_pickle(pororo_dir) if pororo_dir is not None else defaultdict(list)
-    gpt_paraphrase_dataset = load_pickle(gpt_dir) if gpt_dir is not None else defaultdict(list)
+    pororo_paraphrase_dataset = load_pickle(pororo_dir)
+    gpt_paraphrase_dataset = load_pickle(gpt_dir)
 
     for group in tqdm(js_dataset['data']):
         content_id = group['content_id']
@@ -333,7 +333,7 @@ def json_to_df(data_dir, mode, pororo_dir=None, gpt_dir=None):
             for qa in passage['qas']:
                 question_id = qa['question_id']
                 question = qa['question']
-                is_impossible = qa['is_impossible'] if mode=='train' else True
+                is_impossible = qa['is_impossible'] if 'is_impossible' in qa.keys() else True
                 if is_impossible:
                     answer_text = ''
                     answer_start = 0
@@ -362,7 +362,7 @@ def json_to_df(data_dir, mode, pororo_dir=None, gpt_dir=None):
                         'is_impossible':[is_impossible], 
                         'content_id':[content_id],
                         'pororo_paraphrase_question':[pororo_paraphrase_dataset[question]],
-                        'gpt_paraphrase_question':[gpt_paraphrase_dataset[question]]
+                        'gpt_paraphrase_question':[gpt_paraphrase_dataset[question] if not is_impossible else question]
                     })
                 df_dataset = pd.concat([df_dataset, tmp], axis=0, ignore_index=True)
 
