@@ -45,7 +45,7 @@ class CustomQADataset(Dataset):
         return encoded_sample
 
     def preprocess(self, idx):
-        if self.mode=='train' and random.random() > 0.2 and (self.question_shuffle_aug or self.pororo_aug or self.gpt_aug):
+        if self.mode=='train' and (self.question_shuffle_aug or self.pororo_aug or self.gpt_aug):
             question, context, answers = self.augmentation(idx)
         else:
             question, context, answers = self.dataset.loc[idx, 'question'], self.dataset.loc[idx, 'context'], self.dataset.loc[idx, 'answers']
@@ -64,26 +64,19 @@ class CustomQADataset(Dataset):
 
     def augmentation(self, idx):
         sr_sample = self.dataset.loc[idx]
-        key='question'
+        questions = [sr_sample['question']]
         if sr_sample['is_impossible']:
-            if self.pororo_aug and self.gpt_aug:
-                # key = random.choice(['pororo_paraphrase_question', 'gpt_paraphrase_question'])
-                key = 'pororo_paraphrase_question'
-            elif self.pororo_aug:
-                key = 'pororo_paraphrase_question'
-            elif self.gpt_aug:
-                key = 'gpt_paraphrase_question'
-            question = random.choice(sr_sample[key]) if key == 'pororo_paraphrase_question' else sr_sample[key]
+            if self.pororo_aug:
+                questions.extend(sr_sample['pororo_paraphrase_question'])
+            question = random.choice(questions)
             context = sr_sample['context']
             answers = sr_sample['answers']
         else:
-            if self.pororo_aug and self.gpt_aug:
-                key = random.choice(['pororo_paraphrase_question', 'gpt_paraphrase_question'])
-            elif self.pororo_aug:
-                key = 'pororo_paraphrase_question'
-            elif self.gpt_aug:
-                key = 'gpt_paraphrase_question'
-            question = random.choice(sr_sample[key]) if key == 'pororo_paraphrase_question' else sr_sample[key]
+            if self.pororo_aug:
+                questions.extend(sr_sample['pororo_paraphrase_question'])
+            if self.gpt_aug:
+                questions.append(sr_sample['gpt_paraphrase_question'])
+            question = random.choice(questions)
             context = sr_sample['context']
             answers = sr_sample['answers']
 
