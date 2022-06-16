@@ -4,6 +4,7 @@ import os
 import random
 from datetime import datetime, timedelta, timezone
 
+import pandas as pd
 import numpy as np
 import torch
 import wandb
@@ -18,7 +19,7 @@ from modules.optimizers import get_optimizer
 from modules.preprocessing import get_tokenizer
 from modules.recorders import Recorder
 from modules.trainer import Trainer
-from modules.utils import get_logger, load_yaml, save_yaml, save_pickle, load_pickle
+from modules.utils import get_logger, load_yaml, save_yaml, save_pickle, load_pickle, save_csv
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_cfg", type=str, default="train_config.yml")
@@ -294,7 +295,6 @@ if __name__ == "__main__":
 
         for metric_str, score in trainer.score_dict.items():
             row_dict[f"val_{metric_str}"] = score
-        trainer.clear_history()
 
         """
         Record
@@ -324,3 +324,14 @@ if __name__ == "__main__":
             if USE_WANDB:
                 wandb.log(best_row_dict)
             break
+        
+        """
+        Record Val Prediction
+        """
+        if early_stopper.patience_counter == 0:
+            val_df = pd.DataFrame(
+                data={'question_id':trainer.q_ids, 'answer_text':trainer.y, 'pred_text':trainer.y_preds},
+                columns=['question_id', 'answer_text', 'pred_text']
+            )
+        save_csv(os.path.join(RECORDER_DIR, "validation.csv"), val_df)
+        trainer.clear_history()

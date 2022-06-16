@@ -51,8 +51,16 @@ class AttentionLayer(nn.Module):
             config (ModelArguments): ModelArguments
         """
         super().__init__()
+        # self.query_rnn = nn.GRU(
+        #     input_size=30, 
+        #     hidden_size=config.hidden_size, 
+        #     num_layers=1,
+        #     bias=True,
+        #     batch_first=True,
+        #     bidirectional=True,
+        #     )
         self.query_layer = nn.Linear(
-            30*config.hidden_size, config.hidden_size, bias=True)
+            2*config.hidden_size, config.hidden_size, bias=True)
         self.key_layer = nn.Linear(
             config.hidden_size, config.hidden_size, bias=True)
         self.value_layer = nn.Linear(
@@ -69,7 +77,8 @@ class AttentionLayer(nn.Module):
         """
         embedded_query = x * (token_type_ids.unsqueeze(dim=-1) == 0)
         embedded_query = self.dropout(F.relu(embedded_query))
-        embedded_query = embedded_query[:, :30, :]
+        embedded_query = embedded_query[:, :30, :] # b * 30 * dim
+        # _, (embedded_query, _) = self.query_rnn(embedded_query)
         embedded_query = embedded_query.reshape((x.shape[0], 1, -1))
         embedded_query = self.query_layer(embedded_query)
 

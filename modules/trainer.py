@@ -42,6 +42,7 @@ class Trainer:
         # History
         self.loss_sum = 0  # Epoch loss sum
         self.loss_mean = 0  # Epoch loss mean
+        self.q_ids = list()
         self.y = list()
         self.y_preds = list()
         self.score_dict = dict()  # metric score
@@ -80,8 +81,8 @@ class Trainer:
                 # start_score = outputs.start_logits
                 # end_score = outputs.end_logits
 
-                start_idx = torch.argmax(outputs.start_logits, dim=1).cpu().tolist()
-                end_idx = torch.argmax(outputs.end_logits, dim=1).cpu().tolist()
+                start_idxes = torch.argmax(outputs.start_logits, dim=1).cpu().tolist()
+                end_idxes = torch.argmax(outputs.end_logits, dim=1).cpu().tolist()
 
                 # Update
                 if mode == "train" and batch_index % self.grad_accum == 0:
@@ -104,18 +105,29 @@ class Trainer:
                 self.loss_sum += loss.item()
 
                 # create answer; list of strings
-                for i in range(len(input_ids)):
-                    if start_idx[i] > end_idx[i]:
-                        output = ""
+                for context, offsets, start_idx, end_idx, q_id, ans_txt in zip(batch["context"], batch["offset_mapping"], start_idxes, end_idxes, batch["question_id"], batch["answer_text"]):
+                    if start_idx >= end_idx:
+                        pred_txt = ""
+                    else:
+                        s = offsets[start_idx][0]
+                        e = offsets[end_idx][0]
+                        pred_txt = context[s:e]
+                    self.y.append(ans_txt)
+                    self.y_preds.append(pred_txt)
+                    self.q_ids.append(q_id)
+                    
+                # for i in range(len(input_ids)):
+                #     if start_idx[i] > end_idx[i]:
+                #         output = ""
 
-                    self.y_preds.append(
-                        self.tokenizer.decode(input_ids[i][start_idx[i] : end_idx[i]])
-                    )
-                    self.y.append(
-                        self.tokenizer.decode(
-                            input_ids[i][start_positions[i] : end_positions[i]]
-                        )
-                    )
+                #     self.y_preds.append(
+                #         self.tokenizer.decode(input_ids[i][start_idx[i] : end_idx[i]])
+                #     )
+                #     self.y.append(
+                #         self.tokenizer.decode(
+                #             input_ids[i][start_positions[i] : end_positions[i]]
+                #         )
+                #     )
 
                 # Logging
                 if batch_index % self.interval == 0:
@@ -138,6 +150,7 @@ class Trainer:
     def clear_history(self):
         self.loss_sum = 0
         self.loss_mean = 0
+        self.q_ids = list()
         self.y_preds = list()
         self.y = list()
         self.score_dict = dict()
