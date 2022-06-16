@@ -10,7 +10,7 @@ AUGMENTATION:
 TRAINER :
   debug: False
   tokenizer: AutoTokenizer
-  model: SDS # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
+  model: QASDS # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
   pretrained: klue/roberta-base # klue/roberta-base #large  #xlm-roberta-large #tau/splinter-base
   optimizer: adamw
   learning_rate: 1.0e-5
