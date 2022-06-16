@@ -6,6 +6,7 @@ import pickle
 import random
 import shutil
 from itertools import product
+from collections import defaultdict
 
 import pandas as pd
 import yaml
@@ -104,7 +105,6 @@ def get_logger(name: str, dir_: str, stream=False) -> logging.RootLogger:
     logger.addHandler(file_handler)
 
     return logger
-
 
 if __name__ == "__main__":
     pass

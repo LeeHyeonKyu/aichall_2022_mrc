@@ -8,14 +8,125 @@ https://towardsdatascience.com/how-to-fine-tune-a-q-a-transformer-86f91ec92997
 
 import os
 import random
+from collections import defaultdict
 from copy import deepcopy
 from tqdm import tqdm
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from modules.utils import load_json
+from modules.utils import load_json, load_pickle
+
+
+class CustomQADataset(Dataset):
+    def __init__(
+        self, dataset, tokenizer, max_seq_len, mode, question_shuffle_aug, pororo_aug, gpt_aug, debug=False
+    ):
+        self.dataset = dataset.reset_index(drop=True)
+        self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
+        self.mode = mode
+        self.question_shuffle_aug = question_shuffle_aug
+        self.pororo_aug = pororo_aug
+        self.gpt_aug = gpt_aug
+        self.debug = debug
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        encoded_sample, context, answers = self.preprocess(idx)
+        encoded_sample = {k:torch.tensor(v) for k, v in encoded_sample.items()}
+        encoded_sample['context'] = context
+        encoded_sample["question_id"] = self.dataset.loc[idx, 'question_id']
+        encoded_sample['answer_text'] = answers['text']
+        return encoded_sample
+
+    def preprocess(self, idx):
+        if self.mode=='train' and (self.question_shuffle_aug or self.pororo_aug or self.gpt_aug):
+            question, context, answers = self.augmentation(idx)
+        else:
+            question, context, answers = self.dataset.loc[idx, 'question'], self.dataset.loc[idx, 'context'], self.dataset.loc[idx, 'answers']
+        
+        encoded_sample = self.tokenizer(
+            question,
+            context,
+            truncation="only_second",
+            max_length=self.max_seq_len,
+            return_offsets_mapping=True,
+            padding="max_length",
+        )
+
+        encoded_sample = self.add_token_positions(encoded_sample, answers)
+        return encoded_sample, context, answers
+
+    def augmentation(self, idx):
+        sr_sample = self.dataset.loc[idx]
+        questions = [sr_sample['question']]
+        if sr_sample['is_impossible']:
+            if self.pororo_aug:
+                questions.extend(sr_sample['pororo_paraphrase_question'])
+            question = random.choice(questions)
+            context = sr_sample['context']
+            answers = sr_sample['answers']
+        else:
+            if self.pororo_aug:
+                questions.extend(sr_sample['pororo_paraphrase_question'])
+            if self.gpt_aug:
+                questions.append(sr_sample['gpt_paraphrase_question'])
+            question = random.choice(questions)
+            context = sr_sample['context']
+            answers = sr_sample['answers']
+
+            if self.question_shuffle_aug and random.random() > 0.5:
+                content_id = sr_sample['content_id']
+                paragraph_id = sr_sample['paragraph_id']
+                tmp = self.dataset[self.dataset['content_id'] == content_id]
+                tmp = tmp[tmp['is_impossible'] == False]
+                tmp = tmp[tmp['paragraph_id'] != paragraph_id]
+                if len(tmp['context'].values) > 0:
+                    context = random.choice(tmp['context'].values)
+                    answers = {'answer_end': 0, 'answer_start': 0, 'text': ""}
+
+        return question, context, answers
+
+    def add_token_positions(self, encoded_sample, answers):
+        offsets = encoded_sample["offset_mapping"]
+        input_ids = encoded_sample["input_ids"]
+        sequence_ids = encoded_sample.sequence_ids(0)
+
+        if answers["text"] == "":
+            token_start_index = 0
+            token_end_index = 0
+        else:
+            start_char = answers["answer_start"]
+            end_char = answers["answer_end"]
+
+            token_start_index = 0
+            while sequence_ids[token_start_index] != (1):
+                token_start_index += 1
+
+            token_end_index = len(input_ids) - 1
+            while sequence_ids[token_end_index] != (1):
+                token_end_index -= 1
+
+            while (
+                token_start_index < len(offsets)
+                and offsets[token_start_index][0] <= start_char
+            ):
+                token_start_index += 1
+            token_start_index -= 1
+
+            while offsets[token_end_index][1] >= end_char:
+                token_end_index -= 1
+            while token_end_index < len(input_ids) and offsets[token_end_index][0] < end_char:
+                token_end_index += 1
+
+        encoded_sample['start_positions'] = token_start_index
+        encoded_sample['end_positions'] = token_end_index
+        return encoded_sample
 
 
 class QADataset(Dataset):
@@ -55,6 +166,7 @@ class QADataset(Dataset):
                 contexts,
                 truncation="only_second",
                 max_length=self.max_seq_len,
+                return_offsets_mapping=True,
                 padding="max_length",
             )
             return encodings, question_ids, contexts
@@ -157,9 +269,9 @@ class QADataset(Dataset):
     def add_token_positions(self, encodings, answers):
         start_positions = []
         end_positions = []
-
-        sample_mapping = encodings.pop("overflow_to_sample_mapping")
-        offset_mapping = encodings.pop("offset_mapping")
+        
+        sample_mapping = encodings["overflow_to_sample_mapping"]
+        offset_mapping = encodings["offset_mapping"]
 
         for i, offsets in enumerate(offset_mapping):
             input_ids = encodings["input_ids"][i]
@@ -193,7 +305,7 @@ class QADataset(Dataset):
 
                 while offsets[token_end_index][1] >= end_char:
                     token_end_index -= 1
-                while offsets[token_end_index][0] < end_char:
+                while token_end_index < len(input_ids) and offsets[token_end_index][0] < end_char:
                     token_end_index += 1
                 end_positions.append(token_end_index)
 
@@ -201,6 +313,54 @@ class QADataset(Dataset):
             {"start_positions": start_positions, "end_positions": end_positions}
         )
 
+def json_to_df(data_dir, mode, pororo_dir, gpt_dir):
+    df_dataset = pd.DataFrame(columns=['question_id', 'question', 'paragraph_id', 'context', 'answers', 'is_impossible', 'content_id', 'pororo_paraphrase_question', 'gpt_paraphrase_question'])
+    js_dataset = load_json(data_dir)
+    pororo_paraphrase_dataset = load_pickle(pororo_dir)
+    gpt_paraphrase_dataset = load_pickle(gpt_dir)
+
+    for group in tqdm(js_dataset['data']):
+        content_id = group['content_id']
+        for passage in group['paragraphs']:
+            paragraph_id = passage['paragraph_id']
+            context = passage['context']
+            for qa in passage['qas']:
+                question_id = qa['question_id']
+                question = qa['question']
+                is_impossible = qa['is_impossible'] if 'is_impossible' in qa.keys() else True
+                if is_impossible:
+                    answer_text = ''
+                    answer_start = 0
+                    answer_end = 0
+                else:
+                    answer_text = qa['answers'][0]['text']
+                    answer_start = qa['answers'][0]['answer_start']
+                    answer_end = answer_start + len(answer_text)
+                    for n in [0, 1, 2]:
+                        if context[answer_start - n : answer_end - n] == answer_text:
+                            answer_start -= n
+                            answer_end -= n
+                            break
+                        elif context[answer_start + n : answer_end + n] == answer_text:
+                            answer_start += n
+                            answer_end += n
+                            break
+
+                tmp = pd.DataFrame(
+                    data = {
+                        'question_id':[question_id], 
+                        'question':[question], 
+                        'paragraph_id':[paragraph_id], 
+                        'context':[context], 
+                        'answers':[{'text':answer_text, 'answer_start':answer_start, 'answer_end':answer_end}],
+                        'is_impossible':[is_impossible], 
+                        'content_id':[content_id],
+                        'pororo_paraphrase_question':[pororo_paraphrase_dataset[question]],
+                        'gpt_paraphrase_question':[gpt_paraphrase_dataset[question] if not is_impossible else question]
+                    })
+                df_dataset = pd.concat([df_dataset, tmp], axis=0, ignore_index=True)
+
+    return df_dataset
 
 if __name__ == "__main__":
     pass
