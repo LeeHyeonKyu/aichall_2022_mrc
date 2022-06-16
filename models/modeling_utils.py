@@ -83,7 +83,9 @@ class AttentionLayer(nn.Module):
         # embedded_query = embedded_query.reshape((x.shape[0], 1, -1))
         embedded_query = self.query_layer(embedded_query)
 
-        embedded_key = x * (token_type_ids.unsqueeze(dim=-1) == 1)
+        mask = token_type_ids.unsqueeze(dim=-1) == 1
+        mask[:, 0, :] = True
+        embedded_key = x * mask
         embedded_key = self.key_layer(embedded_key)
 
         attention_rate = torch.matmul(
