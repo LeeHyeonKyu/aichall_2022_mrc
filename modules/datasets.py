@@ -67,7 +67,8 @@ class CustomQADataset(Dataset):
         key='question'
         if sr_sample['is_impossible']:
             if self.pororo_aug and self.gpt_aug:
-                key = random.choice(['pororo_paraphrase_question', 'gpt_paraphrase_question'])
+                # key = random.choice(['pororo_paraphrase_question', 'gpt_paraphrase_question'])
+                key = 'pororo_paraphrase_question'
             elif self.pororo_aug:
                 key = 'pororo_paraphrase_question'
             elif self.gpt_aug:
