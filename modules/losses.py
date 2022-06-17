@@ -8,11 +8,14 @@ from torch.nn import functional as F
 
 def get_loss(loss_name: str, ignore_index=None):
     if loss_name == "crossentropy":
-        return nn.CrossEntropyLoss()
+        return ce_loss
+    elif loss_name == "joint":
+        return joint_loss
+    elif loss_name == "mix":
+        return mix_loss
 
-
-def cal_loss(start_positions, end_positions, start_logits, end_logits):
-    '''MRC Task에서 Loss를 계산하는 함수'''
+def ce_loss(start_positions, end_positions, start_logits, end_logits):
+    '''MRC Task에서 Loss를 계산하는 기본 함수'''
     total_loss=None
 
     if start_positions is not None and end_positions is not None:
@@ -33,3 +36,21 @@ def cal_loss(start_positions, end_positions, start_logits, end_logits):
         total_loss = (start_loss + end_loss) / 2
         
     return total_loss
+
+def joint_loss(start_positions, end_positions, start_logits, end_logits):
+    '''start와 end의 joint loss를 계산하는 함수'''
+    joint_logit = start_logits.unsqueeze(2) * end_logits.unsqueeze(1)
+    gt_mat = torch.zeros(size=joint_logit.size(), device=joint_logit.device)
+
+    for b_idx, (s, e) in enumerate(zip(start_positions, end_positions)):
+        gt_mat[b_idx][s][e] = 1
+
+    loss_fn = nn.CrossEntropyLoss()
+    loss = loss_fn(joint_logit, gt_mat)
+    return loss
+
+def mix_loss(start_positions, end_positions, start_logits, end_logits):
+    return (
+        joint_loss(start_positions, end_positions, start_logits, end_logits) + 
+        ce_loss(start_positions, end_positions, start_logits, end_logits)
+    ) / 2
