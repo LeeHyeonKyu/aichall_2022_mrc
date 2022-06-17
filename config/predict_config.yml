@@ -2,7 +2,7 @@ DIRECTORY:
   dataset: dataset
 
 TRAIN:
-  train_serial: '20220616_102812'
+  train_serial: '20220617_001647'
 
 PREDICT:
   seed: 42

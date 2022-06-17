@@ -10,14 +10,14 @@ AUGMENTATION:
 TRAINER :
   debug: False
   tokenizer: AutoTokenizer
-  model: QASDS # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
+  model: AutoModelForQuestionAnswering # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
   pretrained: klue/roberta-base # klue/roberta-base #large  #xlm-roberta-large #tau/splinter-base
   optimizer: adamw
   learning_rate: 1.0e-5
-  loss: crossentropy
+  loss: joint #mix #joint #crossentropy
   metric:
     - accuracy
-  n_epochs: 50
+  n_epochs: 20
   early_stopping_target: val_loss
   early_stopping_patience: 3
   early_stopping_mode: min
@@ -25,12 +25,13 @@ TRAINER :
   gpu: 0
   seed: 42
   grad_accum: 8
+  KFold: 3
 
 DATALOADER:
   batch_size: 8
   num_workers: 0
   shuffle: True
-  pin_memory: True
+  pin_memory: False
   drop_last: False
 
 LOGGER:

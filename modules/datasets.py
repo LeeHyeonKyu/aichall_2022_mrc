@@ -313,7 +313,7 @@ class QADataset(Dataset):
             {"start_positions": start_positions, "end_positions": end_positions}
         )
 
-def json_to_df(data_dir, mode, pororo_dir, gpt_dir):
+def json_to_df(data_dir, pororo_dir, gpt_dir):
     df_dataset = pd.DataFrame(columns=['question_id', 'question', 'paragraph_id', 'context', 'answers', 'is_impossible', 'content_id', 'pororo_paraphrase_question', 'gpt_paraphrase_question'])
     js_dataset = load_json(data_dir)
     pororo_paraphrase_dataset = load_pickle(pororo_dir)

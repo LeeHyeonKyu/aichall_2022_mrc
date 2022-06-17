@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import ElectraTokenizerFast
+from collections import defaultdict
 
 from models.utils import get_model
 from modules.datasets import QADataset
@@ -58,46 +59,24 @@ if __name__ == "__main__":
 
     # Load data
 
+    file_name = "test.json" if not train_config["TRAINER"]["debug"] else "sample.json"
     test_dataset = QADataset(
-        data_dir=os.path.join(DATA_DIR, "test.json"),
+        data_dir=os.path.join(DATA_DIR, file_name),
         tokenizer=tokenizer,
         max_seq_len=tokenizer.model_max_length,
         mode="test",
     )
 
-    question_ids = test_dataset.question_ids
-
-    BATCH_SIZE = train_config["DATALOADER"]["batch_size"]
-
     test_dataloader = DataLoader(
         dataset=test_dataset,
-        batch_size=BATCH_SIZE,
+        batch_size=train_config["DATALOADER"]["batch_size"],
         num_workers=train_config["DATALOADER"]["num_workers"],
         shuffle=False,
         pin_memory=train_config["DATALOADER"]["pin_memory"],
         drop_last=train_config["DATALOADER"]["drop_last"],
     )
 
-    # Load model
-    model_name = train_config["TRAINER"]["model"]
-    # model_args = train_config['MODEL'][model_name]
-    model = get_model(
-        model_name=model_name, pretrained=train_config["TRAINER"]["pretrained"]
-    ).to(device)
-
-    checkpoint = torch.load(os.path.join(RECORDER_DIR, "model.pt"))
-
-    if train_config["TRAINER"]["amp"] == True:
-        from apex import amp
-
-        model = amp.initialize(model, opt_level="O1")
-        model.load_state_dict(checkpoint["model"])
-        amp.load_state_dict(checkpoint["amp"])
-
-    else:
-        model.load_state_dict(checkpoint["model"])
-
-    model.eval()
+    question_ids = test_dataset.question_ids
     pred_df = load_csv(os.path.join(DATA_DIR, "sample_submission.csv"))
 
     # get train token distance distribution
@@ -106,51 +85,93 @@ if __name__ == "__main__":
     else:
         diff_dict = {}
 
-    with torch.set_grad_enabled(False):
-        for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
-            token_type_ids = batch["token_type_ids"].to(device) if "token_type_ids" in batch.keys() else None
-            contexts = batch["context"]
-            q_ids = batch["question_id"]
+    """
+    KFold Loop
+    """
+    all_fold_preds = defaultdict(list)
+    n_fold = train_config["TRAINER"]["KFold"] if "KFold" in train_config["TRAINER"].keys() else 1
+    for fold_idx in range(n_fold):
+        fold_preds = defaultdict(list)
 
-            # Inference
-            outputs = model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
+        # Load model
+        model_name = train_config["TRAINER"]["model"]
+        # model_args = train_config['MODEL'][model_name]
+        model = get_model(
+            model_name=model_name, pretrained=train_config["TRAINER"]["pretrained"]
+        ).to(device)
 
-            start_score = outputs.start_logits.detach().cpu()
-            end_score = outputs.end_logits.detach().cpu()
-            start_idxes, end_idxes = apply_train_distribution(
-                start_score = start_score, 
-                end_score = end_score,
-                diff_dict = diff_dict,
-                n_best=predict_config["PREDICT"]["distribution_n_best"], 
-                smooth=predict_config["PREDICT"]["distribution_smooth"], 
-                use_fn=predict_config["PREDICT"]["distribution_use"],
-            )
+        weight_path = f"model_{fold_idx}.pt"
+        if not os.path.isfile(os.path.join(RECORDER_DIR, weight_path)):
+            weight_path = "model.pt"
+        checkpoint = torch.load(os.path.join(RECORDER_DIR, weight_path))
 
-            y_pred = []
+        if train_config["TRAINER"]["amp"] == True:
+            from apex import amp
 
-            for context, offsets, start_idx, end_idx in zip(contexts, batch["offset_mapping"], start_idxes, end_idxes):
-                if start_idx >= end_idx:
-                    ans_txt = ""
-                else:
-                    s = offsets[start_idx][0]
-                    e = offsets[end_idx][0]
-                    ans_txt = context[s:e]
+            model = amp.initialize(model, opt_level="O1")
+            model.load_state_dict(checkpoint["model"])
+            amp.load_state_dict(checkpoint["amp"])
 
-                """
-                ʻ미래의연구자ʼ는  /  미래의 연구자
-                ʻ편리한세상ʼ에서는  /  편리한 세상
-                ʻ위험인자평가서  /  위험인자 평가서
-                ➄시료충진의  /  시료충진
-                epost™  /  epost
-                """
-                ans_txt = re.sub("ʻ|ʼ|➄|™", "", ans_txt)
+        else:
+            model.load_state_dict(checkpoint["model"])
 
-                y_pred.append(ans_txt)
+        model.eval()
 
-            for q_id, pred in zip(q_ids, y_pred):
-                pred_df.loc[pred_df["question_id"] == q_id, "answer_text"] = pred
+        with torch.set_grad_enabled(False):
+            for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
+                input_ids = batch["input_ids"].to(device)
+                attention_mask = batch["attention_mask"].to(device)
+                token_type_ids = batch["token_type_ids"].to(device) if "token_type_ids" in batch.keys() else None
+                contexts = batch["context"]
+                q_ids = batch["question_id"]
+
+                # Inference
+                outputs = model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
+
+                start_score = outputs.start_logits.detach().cpu()
+                end_score = outputs.end_logits.detach().cpu()
+                fold_preds['start_score'].extend(start_score)
+                fold_preds['end_score'].extend(end_score)
+
+                if fold_idx == 0:
+                    all_fold_preds["context"].extend(batch["context"])
+                    all_fold_preds["question_id"].extend(batch["question_id"])
+                    all_fold_preds["offset_mapping"].extend(batch["offset_mapping"])
+
+        all_fold_preds['start_score'].append(torch.stack(fold_preds['start_score']))
+        all_fold_preds['end_score'].append(torch.stack(fold_preds['end_score']))
+
+    all_fold_preds['start_score'] = sum(all_fold_preds['start_score']) / len(all_fold_preds['start_score'])
+    all_fold_preds['end_score'] = sum(all_fold_preds['end_score']) / len(all_fold_preds['end_score'])
+
+    y_pred, q_ids = [], []
+    for context, offsets, start_score, end_score, question_id in zip(all_fold_preds['context'], all_fold_preds['offset_mapping'], all_fold_preds['start_score'], all_fold_preds['end_score'], all_fold_preds['question_id']):
+        start_idxes, end_idxes = apply_train_distribution(
+            start_score = start_score.unsqueeze(0), 
+            end_score = end_score.unsqueeze(0),
+            diff_dict = diff_dict,
+            n_best=predict_config["PREDICT"]["distribution_n_best"], 
+            smooth=predict_config["PREDICT"]["distribution_smooth"], 
+            use_fn=predict_config["PREDICT"]["distribution_use"],
+        )
+        start_idx, end_idx = start_idxes[0], end_idxes[0]
+        if start_idx >= end_idx:
+            ans_txt = ""
+        else:
+            s = offsets[start_idx][0]
+            e = offsets[end_idx][0]
+            ans_txt = context[s:e]
+        ans_txt = re.sub("ʻ|ʼ|➄|™|『|』", "", ans_txt)
+        y_pred.append(ans_txt)
+        q_ids.append(question_id)
+
+    if train_config["TRAINER"]["debug"]:
+        pred_df = pd.DataFrame({"question_id":q_ids, "answer_text":y_pred})
+    else:
+        # pred_df["question_id"] = q_ids
+        # pred_df["answer_text"] = y_pred
+        for q_id, pred in zip(q_ids, y_pred):
+            pred_df.loc[pred_df["question_id"] == q_id, "answer_text"] = pred
     save_path = os.path.join(PREDICT_DIR, "prediction.csv")
     print(save_path)
     save_csv(save_path, pred_df)
