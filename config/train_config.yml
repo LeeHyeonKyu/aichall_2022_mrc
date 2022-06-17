@@ -10,11 +10,11 @@ AUGMENTATION:
 TRAINER :
   debug: False
   tokenizer: AutoTokenizer
-  model: AutoModelForQuestionAnswering # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
+  model: QASDS # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
   pretrained: klue/roberta-base # klue/roberta-base #large  #xlm-roberta-large #tau/splinter-base
   optimizer: adamw
-  learning_rate: 1.0e-5
-  loss: joint #mix #joint #crossentropy
+  learning_rate: 1.0e-6
+  loss: mix #mix #joint #crossentropy
   metric:
     - accuracy
   n_epochs: 20

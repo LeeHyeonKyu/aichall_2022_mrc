@@ -45,7 +45,7 @@ def joint_loss(start_positions, end_positions, start_logits, end_logits):
     for b_idx, (s, e) in enumerate(zip(start_positions, end_positions)):
         gt_mat[b_idx][s][e] = 1
 
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(reduction='sum')
     loss = loss_fn(joint_logit, gt_mat)
     return loss
 
