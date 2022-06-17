@@ -21,6 +21,7 @@ from modules.preprocessing import get_tokenizer
 from modules.recorders import Recorder
 from modules.trainer import Trainer
 from modules.utils import get_logger, load_yaml, save_yaml, save_pickle, load_pickle, save_csv, load_csv
+from modules.schedulers import get_scheduler
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_cfg", type=str, default="train_config.yml")
@@ -179,10 +180,15 @@ if __name__ == "__main__":
         03. Set trainer
         """
         # Optimizer
+        lr = config["TRAINER"]["learning_rate"]
+        if config["TRAINER"]["scheduler"] == "warmupcosine":
+            lr *= 1e-2
         optimizer = get_optimizer(optimizer_name=config["TRAINER"]["optimizer"])
         optimizer = optimizer(
-            params=model.parameters(), lr=config["TRAINER"]["learning_rate"]
+            params=model.parameters(), lr=lr
         )
+
+        scheduler = get_scheduler(optimizer=optimizer, name=config["TRAINER"]["scheduler"], lr=lr)
 
         # Loss
         loss_fn = get_loss(loss_name=config["TRAINER"]["loss"])
@@ -227,7 +233,7 @@ if __name__ == "__main__":
             record_dir=RECORDER_DIR,
             model=model,
             optimizer=optimizer,
-            scheduler=None,
+            scheduler=scheduler,
             amp=amp if config["TRAINER"]["amp"] else None,
             logger=logger,
             fold_idx=fold_idx
@@ -273,6 +279,9 @@ if __name__ == "__main__":
                 mode="train",
                 random_masking=config['AUGMENTATION']['random_masking']
             )
+
+            if scheduler is not None:
+                scheduler.step()
 
             row_dict["train_loss"] = trainer.loss_mean
             row_dict["train_elapsed_time"] = trainer.elapsed_time
