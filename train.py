@@ -245,7 +245,7 @@ if __name__ == "__main__":
             wandb_project_serial = config["LOGGER"]["wandb"]["project_serial"]
             wandb_username = config["LOGGER"]["wandb"]["username"]
             wandb.init(
-                project=wandb_project_serial, dir=RECORDER_DIR, entity=wandb_username, name=f"{train_serial}_{fold_idx}fold", group=wandb_project_serial
+                project=wandb_project_serial, dir=RECORDER_DIR, entity=wandb_username, name=f"{train_serial}_{fold_idx}fold", group=train_serial
             )
             # wandb.run.name = f"{train_serial}_{fold_idx}fold"
             wandb.config.update(config)
