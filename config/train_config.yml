@@ -14,19 +14,19 @@ TRAINER :
   pretrained: klue/roberta-base # klue/roberta-base #large  #xlm-roberta-large #tau/splinter-base
   optimizer: adamw
   learning_rate: 1.0e-5
-  loss: crossentropy #mix #joint #crossentropy
+  loss: joint #mix #joint #crossentropy
   scheduler: warmupcosine
   metric:
     - accuracy
   n_epochs: 50
   early_stopping_target: val_loss
-  early_stopping_patience: 3
+  early_stopping_patience: 5
   early_stopping_mode: min
   amp: False
   gpu: 0
   seed: 42
   grad_accum: 8
-  KFold: 3
+  KFold: 5
 
 DATALOADER:
   batch_size: 8
