@@ -14,7 +14,7 @@ TRAINER :
   pretrained: klue/roberta-base # klue/roberta-base #large  #xlm-roberta-large #tau/splinter-base
   optimizer: adamw
   learning_rate: 1.0e-5
-  loss: joint #mix #joint #crossentropy
+  loss: mix #mix #joint #crossentropy
   scheduler: warmupcosine
   metric:
     - accuracy
