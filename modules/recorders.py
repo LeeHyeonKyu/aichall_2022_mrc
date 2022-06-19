@@ -21,18 +21,20 @@ class Recorder:
         scheduler: object,
         amp: object,
         logger: logging.RootLogger = None,
+        fold_idx: int = 0,
     ):
 
         self.record_dir = record_dir
-        self.plot_dir = os.path.join(record_dir, "plots")
-        self.record_filepath = os.path.join(self.record_dir, "record.csv")
-        self.weight_path = os.path.join(record_dir, "model.pt")
+        self.plot_dir = os.path.join(record_dir, f"plots_{fold_idx}")
+        self.record_filepath = os.path.join(self.record_dir, f"record_{fold_idx}.csv")
+        self.weight_path = os.path.join(record_dir, f"model_{fold_idx}.pt")
 
         self.logger = logger
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.amp = amp
+        self.fold_idx = fold_idx
 
         os.makedirs(self.plot_dir, exist_ok=True)
 

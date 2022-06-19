@@ -10,7 +10,7 @@ import torch
 from tqdm import tqdm
 # from apex import amp
 
-from modules.losses import cal_loss
+# from modules.losses import ce_loss, joint_loss
 from modules.utils import load_json
 
 class Trainer:
@@ -77,7 +77,7 @@ class Trainer:
                     token_type_ids=token_type_ids
                 )
 
-                loss = cal_loss(start_positions, end_positions, outputs.start_logits, outputs.end_logits)
+                loss = self.loss_fn(start_positions, end_positions, outputs.start_logits, outputs.end_logits)
                 # start_score = outputs.start_logits
                 # end_score = outputs.end_logits
 
