@@ -1,17 +1,20 @@
 import os
-import random
 import pickle
-from time import time
+import random
 from collections import defaultdict
+from time import time
 
 import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
-# from apex import amp
 
 # from modules.losses import ce_loss, joint_loss
 from modules.utils import load_json
+
+# from apex import amp
+
+
 
 class Trainer:
     def __init__(
@@ -25,7 +28,7 @@ class Trainer:
         amp,
         tokenizer,
         interval=100,
-        grad_accum=1
+        grad_accum=1,
     ):
 
         self.model = model
@@ -55,7 +58,7 @@ class Trainer:
 
             for batch_index, batch in enumerate(tqdm(dataloader, leave=True)):
 
-                if mode == 'train' and random_masking:
+                if mode == "train" and random_masking:
                     batch["input_ids"] = self.ramdom_masking(batch["input_ids"])
 
                 # initialize calculated gradients (from prev step)
@@ -65,7 +68,11 @@ class Trainer:
                 attention_mask = batch["attention_mask"].to(self.device)
                 start_positions = batch["start_positions"].to(self.device)
                 end_positions = batch["end_positions"].to(self.device)
-                token_type_ids = batch["token_type_ids"].to(self.device) if "token_type_ids" in batch.keys() else None
+                token_type_ids = (
+                    batch["token_type_ids"].to(self.device)
+                    if "token_type_ids" in batch.keys()
+                    else None
+                )
 
                 # train model on batch and return outputs (incl. loss)
                 # Inference
@@ -74,10 +81,15 @@ class Trainer:
                     attention_mask=attention_mask,
                     start_positions=start_positions,
                     end_positions=end_positions,
-                    token_type_ids=token_type_ids
+                    token_type_ids=token_type_ids,
                 )
 
-                loss = self.loss_fn(start_positions, end_positions, outputs.start_logits, outputs.end_logits)
+                loss = self.loss_fn(
+                    start_positions,
+                    end_positions,
+                    outputs.start_logits,
+                    outputs.end_logits,
+                )
                 # start_score = outputs.start_logits
                 # end_score = outputs.end_logits
 
@@ -105,7 +117,14 @@ class Trainer:
                 self.loss_sum += loss.item()
 
                 # create answer; list of strings
-                for context, offsets, start_idx, end_idx, q_id, ans_txt in zip(batch["context"], batch["offset_mapping"], start_idxes, end_idxes, batch["question_id"], batch["answer_text"]):
+                for context, offsets, start_idx, end_idx, q_id, ans_txt in zip(
+                    batch["context"],
+                    batch["offset_mapping"],
+                    start_idxes,
+                    end_idxes,
+                    batch["question_id"],
+                    batch["answer_text"],
+                ):
                     if start_idx >= end_idx:
                         pred_txt = ""
                     else:
@@ -115,7 +134,7 @@ class Trainer:
                     self.y.append(ans_txt)
                     self.y_preds.append(pred_txt)
                     self.q_ids.append(q_id)
-                    
+
                 # for i in range(len(input_ids)):
                 #     if start_idx[i] > end_idx[i]:
                 #         output = ""
@@ -156,16 +175,26 @@ class Trainer:
         self.score_dict = dict()
         self.elapsed_time = 0
 
-    def ramdom_masking(self, input_ids, threshold = 0.05):
+    def ramdom_masking(self, input_ids, threshold=0.05):
         for sample_idx, sample_input_id in enumerate(input_ids):
             for token_idx, token in enumerate(sample_input_id):
-                if token == self.tokenizer.sep_token_id or token == self.tokenizer.eos_token_id:
+                if (
+                    token == self.tokenizer.sep_token_id
+                    or token == self.tokenizer.eos_token_id
+                ):
                     break
-                if token != self.tokenizer.cls_token_id and token != self.tokenizer.bos_token_id and random.random() < threshold:
+                if (
+                    token != self.tokenizer.cls_token_id
+                    and token != self.tokenizer.bos_token_id
+                    and random.random() < threshold
+                ):
                     input_ids[sample_idx][token_idx] = self.tokenizer.mask_token_id
         return input_ids
 
-def apply_train_distribution(start_score, end_score, diff_dict, n_best=5, smooth=10, use_fn=True):
+
+def apply_train_distribution(
+    start_score, end_score, diff_dict, n_best=5, smooth=10, use_fn=True
+):
     if not use_fn:
         start_idxes = torch.argmax(start_score, dim=1).tolist()
         end_idxes = torch.argmax(end_score, dim=1).tolist()
@@ -180,17 +209,22 @@ def apply_train_distribution(start_score, end_score, diff_dict, n_best=5, smooth
         end_topk_idxes = end_topk.indices.repeat(1, n_best)
         end_start_diff = end_topk_idxes - start_topk_idxes
         end_start_diff = end_start_diff.float()
-        end_start_diff.apply_(lambda x: diff_dict[x]/smooth)
-        
+        end_start_diff.apply_(lambda x: diff_dict[x] / smooth)
+
         tot_logit = start_topk_val + end_topk_val + end_start_diff
         tot_start_end_idx = torch.argmax(tot_logit, dim=1)
 
         start_idxes, end_idxes = [], []
-        for start_idx, end_idx, start_end_idx in zip(start_topk_idxes.tolist(), end_topk_idxes.tolist(), tot_start_end_idx.tolist()):
+        for start_idx, end_idx, start_end_idx in zip(
+            start_topk_idxes.tolist(),
+            end_topk_idxes.tolist(),
+            tot_start_end_idx.tolist(),
+        ):
             start_idxes.append(start_idx[start_end_idx])
             end_idxes.append(end_idx[start_end_idx])
-    
+
     return start_idxes, end_idxes
+
 
 def get_token_distance_distribution(tokenizer, train_path):
     train = load_json(train_path)
@@ -199,19 +233,21 @@ def get_token_distance_distribution(tokenizer, train_path):
     diff_dict = defaultdict(lambda: -100)
     num_of_train_sample = 0
 
-    for group in train['data']:
-        for passage in group['paragraphs']:
-            for qa in passage['qas']:
-                answers = qa['answers']
+    for group in train["data"]:
+        for passage in group["paragraphs"]:
+            for qa in passage["qas"]:
+                answers = qa["answers"]
                 if len(answers) > 0:
-                    answer = qa['answers'][0]['text']
-                    token_distance = len(tokenizer(answer, add_special_tokens=False)['input_ids'])
+                    answer = qa["answers"][0]["text"]
+                    token_distance = len(
+                        tokenizer(answer, add_special_tokens=False)["input_ids"]
+                    )
                 else:
                     token_distance = 0
                 num_of_train_sample += 1
                 tmp_dict[token_distance] += 1
 
     for k, v in tmp_dict.items():
-        diff_dict[k] = v/num_of_train_sample
-    
+        diff_dict[k] = v / num_of_train_sample
+
     return diff_dict

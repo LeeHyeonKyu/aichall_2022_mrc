@@ -1,6 +1,7 @@
 import os
-import re
 import random
+import re
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
@@ -9,13 +10,13 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import ElectraTokenizerFast
-from collections import defaultdict
 
 from models.utils import get_model
 from modules.datasets import QADataset
-from modules.trainer import apply_train_distribution, get_token_distance_distribution
-from modules.utils import load_csv, load_yaml, save_csv, save_json, save_pickle
 from modules.preprocessing import get_tokenizer
+from modules.trainer import (apply_train_distribution,
+                             get_token_distance_distribution)
+from modules.utils import load_csv, load_yaml, save_csv, save_json, save_pickle
 
 # Config
 PROJECT_DIR = os.path.dirname(__file__)
@@ -81,7 +82,9 @@ if __name__ == "__main__":
 
     # get train token distance distribution
     if predict_config["PREDICT"]["distribution_use"]:
-        diff_dict = get_token_distance_distribution(tokenizer, os.path.join(DATA_DIR, "train.json"))
+        diff_dict = get_token_distance_distribution(
+            tokenizer, os.path.join(DATA_DIR, "train.json")
+        )
     else:
         diff_dict = {}
 
@@ -89,7 +92,11 @@ if __name__ == "__main__":
     KFold Loop
     """
     all_fold_preds = defaultdict(list)
-    n_fold = train_config["TRAINER"]["KFold"] if "KFold" in train_config["TRAINER"].keys() else 1
+    n_fold = (
+        train_config["TRAINER"]["KFold"]
+        if "KFold" in train_config["TRAINER"].keys()
+        else 1
+    )
     for fold_idx in range(n_fold):
         fold_preds = defaultdict(list)
 
@@ -121,37 +128,55 @@ if __name__ == "__main__":
             for batch_index, batch in enumerate(tqdm(test_dataloader, leave=True)):
                 input_ids = batch["input_ids"].to(device)
                 attention_mask = batch["attention_mask"].to(device)
-                token_type_ids = batch["token_type_ids"].to(device) if "token_type_ids" in batch.keys() else None
+                token_type_ids = (
+                    batch["token_type_ids"].to(device)
+                    if "token_type_ids" in batch.keys()
+                    else None
+                )
                 contexts = batch["context"]
                 q_ids = batch["question_id"]
 
                 # Inference
-                outputs = model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
+                outputs = model(
+                    input_ids,
+                    attention_mask=attention_mask,
+                    token_type_ids=token_type_ids,
+                )
 
                 start_score = outputs.start_logits.detach().cpu()
                 end_score = outputs.end_logits.detach().cpu()
-                fold_preds['start_score'].extend(start_score)
-                fold_preds['end_score'].extend(end_score)
+                fold_preds["start_score"].extend(start_score)
+                fold_preds["end_score"].extend(end_score)
 
                 if fold_idx == 0:
                     all_fold_preds["context"].extend(batch["context"])
                     all_fold_preds["question_id"].extend(batch["question_id"])
                     all_fold_preds["offset_mapping"].extend(batch["offset_mapping"])
 
-        all_fold_preds['start_score'].append(torch.stack(fold_preds['start_score']))
-        all_fold_preds['end_score'].append(torch.stack(fold_preds['end_score']))
+        all_fold_preds["start_score"].append(torch.stack(fold_preds["start_score"]))
+        all_fold_preds["end_score"].append(torch.stack(fold_preds["end_score"]))
 
-    all_fold_preds['start_score'] = sum(all_fold_preds['start_score']) / len(all_fold_preds['start_score'])
-    all_fold_preds['end_score'] = sum(all_fold_preds['end_score']) / len(all_fold_preds['end_score'])
+    all_fold_preds["start_score"] = sum(all_fold_preds["start_score"]) / len(
+        all_fold_preds["start_score"]
+    )
+    all_fold_preds["end_score"] = sum(all_fold_preds["end_score"]) / len(
+        all_fold_preds["end_score"]
+    )
 
     y_pred, q_ids = [], []
-    for context, offsets, start_score, end_score, question_id in zip(all_fold_preds['context'], all_fold_preds['offset_mapping'], all_fold_preds['start_score'], all_fold_preds['end_score'], all_fold_preds['question_id']):
+    for context, offsets, start_score, end_score, question_id in zip(
+        all_fold_preds["context"],
+        all_fold_preds["offset_mapping"],
+        all_fold_preds["start_score"],
+        all_fold_preds["end_score"],
+        all_fold_preds["question_id"],
+    ):
         start_idxes, end_idxes = apply_train_distribution(
-            start_score = start_score.unsqueeze(0), 
-            end_score = end_score.unsqueeze(0),
-            diff_dict = diff_dict,
-            n_best=predict_config["PREDICT"]["distribution_n_best"], 
-            smooth=predict_config["PREDICT"]["distribution_smooth"], 
+            start_score=start_score.unsqueeze(0),
+            end_score=end_score.unsqueeze(0),
+            diff_dict=diff_dict,
+            n_best=predict_config["PREDICT"]["distribution_n_best"],
+            smooth=predict_config["PREDICT"]["distribution_smooth"],
             use_fn=predict_config["PREDICT"]["distribution_use"],
         )
         start_idx, end_idx = start_idxes[0], end_idxes[0]
@@ -166,7 +191,7 @@ if __name__ == "__main__":
         q_ids.append(question_id)
 
     if train_config["TRAINER"]["debug"]:
-        pred_df = pd.DataFrame({"question_id":q_ids, "answer_text":y_pred})
+        pred_df = pd.DataFrame({"question_id": q_ids, "answer_text": y_pred})
     else:
         # pred_df["question_id"] = q_ids
         # pred_df["answer_text"] = y_pred
