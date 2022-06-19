@@ -41,6 +41,7 @@ def joint_loss(start_positions, end_positions, start_logits, end_logits):
     '''start와 end의 joint loss를 계산하는 함수'''
     batch_size, length = start_logits.size()
     joint_logit = start_logits.unsqueeze(2) * end_logits.unsqueeze(1)
+    joint_logit = torch.triu(joint_logit)
     joint_logit = joint_logit.reshape(batch_size, length*length)
     gt = start_positions * length + end_positions
     loss_fn = nn.CrossEntropyLoss()
