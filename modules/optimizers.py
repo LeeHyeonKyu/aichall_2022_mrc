@@ -2,6 +2,7 @@
 """
 
 import torch.optim as optim
+import adamp
 
 
 def get_optimizer(optimizer_name: str):
@@ -17,3 +18,7 @@ def get_optimizer(optimizer_name: str):
     elif optimizer_name == "adamw":
 
         return optim.AdamW
+
+    elif optimizer_name == "adamp":
+
+        return adamp.AdamP
