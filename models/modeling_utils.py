@@ -1,6 +1,6 @@
 import math
-import numpy as np
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -23,12 +23,12 @@ class QAConvSDSLayer(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv1d(
             in_channels=input_size,
-            out_channels=input_size*2,
+            out_channels=input_size * 2,
             kernel_size=3,
-            padding=1
+            padding=1,
         )
         self.conv2 = nn.Conv1d(
-            in_channels=input_size*2,
+            in_channels=input_size * 2,
             out_channels=input_size,
             kernel_size=1,
         )
@@ -52,19 +52,18 @@ class AttentionLayer(nn.Module):
         """
         super().__init__()
         self.query_rnn = nn.GRU(
-            input_size=config.hidden_size, 
-            hidden_size=config.hidden_size, 
+            input_size=config.hidden_size,
+            hidden_size=config.hidden_size,
             num_layers=1,
             bias=True,
             batch_first=True,
             bidirectional=True,
-            )
+        )
         self.query_layer = nn.Linear(
-            2*config.hidden_size, config.hidden_size, bias=True)
-        self.key_layer = nn.Linear(
-            config.hidden_size, config.hidden_size, bias=True)
-        self.value_layer = nn.Linear(
-            config.hidden_size, config.hidden_size, bias=True)
+            2 * config.hidden_size, config.hidden_size, bias=True
+        )
+        self.key_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.value_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, x: torch.Tensor, token_type_ids: torch.Tensor) -> torch.Tensor:
@@ -77,9 +76,9 @@ class AttentionLayer(nn.Module):
         """
         embedded_query = x * (token_type_ids.unsqueeze(dim=-1) == 0)
         embedded_query = self.dropout(F.relu(embedded_query))
-        embedded_query = embedded_query[:, :30, :] # b * 30 * dim
+        embedded_query = embedded_query[:, :30, :]  # b * 30 * dim
         embedded_query, _ = self.query_rnn(embedded_query)
-        embedded_query = embedded_query[:, -1:, :] # b * 1 * dimx2
+        embedded_query = embedded_query[:, -1:, :]  # b * 1 * dimx2
         # embedded_query = embedded_query.reshape((x.shape[0], 1, -1))
         embedded_query = self.query_layer(embedded_query)
 
@@ -89,7 +88,8 @@ class AttentionLayer(nn.Module):
         embedded_key = self.key_layer(embedded_key)
 
         attention_rate = torch.matmul(
-            embedded_key, torch.transpose(embedded_query, 1, 2))
+            embedded_key, torch.transpose(embedded_query, 1, 2)
+        )
         attention_rate = attention_rate / math.sqrt(embedded_key.shape[-1])
         attention_rate = attention_rate / 10
         attention_rate = F.softmax(attention_rate, 1)
@@ -111,19 +111,22 @@ class ConvLayer(nn.Module):
         self.conv1 = nn.Conv1d(
             in_channels=config.hidden_size,
             out_channels=config.hidden_size,
-            kernel_size=1)
+            kernel_size=1,
+        )
 
         self.conv3 = nn.Conv1d(
             in_channels=config.hidden_size,
             out_channels=config.hidden_size,
             kernel_size=3,
-            padding=1)
+            padding=1,
+        )
 
         self.conv5 = nn.Conv1d(
             in_channels=config.hidden_size,
             out_channels=config.hidden_size,
             kernel_size=5,
-            padding=2)
+            padding=2,
+        )
 
         self.drop_out = nn.Dropout(0.3)
 
@@ -138,8 +141,7 @@ class ConvLayer(nn.Module):
         conv_output1 = F.relu(self.conv1(conv_input))
         conv_output3 = F.relu(self.conv3(conv_input))
         conv_output5 = F.relu(self.conv5(conv_input))
-        concat_output = torch.cat(
-            (conv_output1, conv_output3, conv_output5), dim=1)
+        concat_output = torch.cat((conv_output1, conv_output3, conv_output5), dim=1)
 
         concat_output = concat_output.transpose(1, 2)
         concat_output = self.drop_out(concat_output)
@@ -173,7 +175,7 @@ class QAConvSDSHead(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x.shape == (bsz, seq_length, hidden_dim)
         out = self.convs(x)
-        return self.qa_output(out) # (bsz, seq_length, hidden_dim)
+        return self.qa_output(out)  # (bsz, seq_length, hidden_dim)
 
 
 class QAConvHeadWithAttention(nn.Module):
@@ -187,8 +189,7 @@ class QAConvHeadWithAttention(nn.Module):
         super().__init__()
         self.attention = AttentionLayer(config)
         self.conv = ConvLayer(config)
-        self.classify_layer = nn.Linear(
-            config.hidden_size*3, 2, bias=True)
+        self.classify_layer = nn.Linear(config.hidden_size * 3, 2, bias=True)
 
     def forward(self, x, token_type_ids):
         """
@@ -214,8 +215,7 @@ class QAConvHead(nn.Module):
         """
         super().__init__()
         self.conv = ConvLayer(config)
-        self.classify_layer = nn.Linear(
-            config.hidden_size*3, 2, bias=True)
+        self.classify_layer = nn.Linear(config.hidden_size * 3, 2, bias=True)
 
     def forward(self, **kwargs):
         """
@@ -224,6 +224,6 @@ class QAConvHead(nn.Module):
         Returns:
             torch.Tensor: output logits (batch_size * max_seq_legth * 2)
         """
-        concat_output = self.conv(kwargs['x'])
+        concat_output = self.conv(kwargs["x"])
         logits = self.classify_layer(concat_output)
         return logits

@@ -4,24 +4,25 @@ import os
 import random
 from datetime import datetime, timedelta, timezone
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import torch
 import wandb
-from torch.utils.data import DataLoader
 from sklearn.model_selection import KFold
+from torch.utils.data import DataLoader
 
 from models.utils import get_model
-from modules.datasets import QADataset, CustomQADataset, json_to_df
+from modules.datasets import CustomQADataset, QADataset, json_to_df
 from modules.earlystoppers import EarlyStopper
 from modules.losses import get_loss
 from modules.metrics import get_metric
 from modules.optimizers import get_optimizer
 from modules.preprocessing import get_tokenizer
 from modules.recorders import Recorder
-from modules.trainer import Trainer
-from modules.utils import get_logger, load_yaml, save_yaml, save_pickle, load_pickle, save_csv, load_csv
 from modules.schedulers import get_scheduler
+from modules.trainer import Trainer
+from modules.utils import (get_logger, load_csv, load_pickle, load_yaml,
+                           save_csv, save_pickle, save_yaml)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_cfg", type=str, default="train_config.yml")
@@ -48,7 +49,7 @@ os.makedirs(RECORDER_DIR, exist_ok=True)
 # Data directory
 DATA_DIR = config["DIRECTORY"]["dataset"]
 PREPROCESSED_DIR = os.path.join(
-    DATA_DIR, "preprocessed" #, config["TRAINER"]["pretrained"]
+    DATA_DIR, "preprocessed"  # , config["TRAINER"]["pretrained"]
 )
 
 # Seed
@@ -88,27 +89,28 @@ if __name__ == "__main__":
         df_dataset = load_pickle(os.path.join(PREPROCESSED_DIR, all_data_name))
         logger.info("loaded existing .pt")
     else:
-        file_name = 'sample.json' if DEBUG else "train.json"
+        file_name = "sample.json" if DEBUG else "train.json"
         df_dataset = json_to_df(
-            data_dir=os.path.join(DATA_DIR, file_name), 
-            pororo_dir=os.path.join(DATA_DIR, 'train_para_final.pkl'),
-            gpt_dir=os.path.join(DATA_DIR, 'kogpt_para.pkl'),
+            data_dir=os.path.join(DATA_DIR, file_name),
+            pororo_dir=os.path.join(DATA_DIR, "train_para_final.pkl"),
+            gpt_dir=os.path.join(DATA_DIR, "kogpt_para.pkl"),
         )
 
         if not DEBUG:
             os.makedirs(PREPROCESSED_DIR, exist_ok=True)
             save_pickle(
-                path=os.path.join(PREPROCESSED_DIR, all_data_name),
-                obj=df_dataset
+                path=os.path.join(PREPROCESSED_DIR, all_data_name), obj=df_dataset
             )
         logger.info("loaded data, created .pkl")
 
     if n_fold is None:
-        train_idxes = list(df_dataset.index)[:-1 * int(len(df_dataset) * 0.1)]
-        val_idxes = list(df_dataset.index)[-1 * int(len(df_dataset) * 0.1):]
+        train_idxes = list(df_dataset.index)[: -1 * int(len(df_dataset) * 0.1)]
+        val_idxes = list(df_dataset.index)[-1 * int(len(df_dataset) * 0.1) :]
         train_val_idx_lst = [(train_idxes, val_idxes)]
     else:
-        kf = KFold(n_splits=n_fold, shuffle=True, random_state=config["TRAINER"]["seed"])
+        kf = KFold(
+            n_splits=n_fold, shuffle=True, random_state=config["TRAINER"]["seed"]
+        )
         train_val_idx_lst = kf.split(df_dataset)
 
     """
@@ -119,7 +121,7 @@ if __name__ == "__main__":
             dataset=df_dataset.loc[train_idx],
             tokenizer=tokenizer,
             max_seq_len=tokenizer.model_max_length,
-            mode='train',
+            mode="train",
             question_shuffle_aug=config["AUGMENTATION"]["question_shuffle_aug"],
             pororo_aug=config["AUGMENTATION"]["pororo_aug"],
             gpt_aug=config["AUGMENTATION"]["gpt_aug"],
@@ -128,24 +130,24 @@ if __name__ == "__main__":
             dataset=df_dataset.loc[val_idx],
             tokenizer=tokenizer,
             max_seq_len=tokenizer.model_max_length,
-            mode='val',
+            mode="val",
             question_shuffle_aug=False,
             pororo_aug=False,
             gpt_aug=False,
         )
 
         if DEBUG:
-            print(f'train: {len(train_dataset)}, val: {len(val_dataset)}')
+            print(f"train: {len(train_dataset)}, val: {len(val_dataset)}")
             answers, decoded_answers = [], []
             for i in range(len(train_dataset)):
                 tmp = train_dataset[i]
                 input_ids = tmp["input_ids"]
                 start_idx = tmp["start_positions"]
                 end_idx = tmp["end_positions"]
-                answers.append(tmp['answer_text'])
+                answers.append(tmp["answer_text"])
                 decoded_answers.append(tokenizer.decode(input_ids[start_idx:end_idx]))
-            print(f'answers: {answers}')
-            print(f'decoded: {decoded_answers}')
+            print(f"answers: {answers}")
+            print(f"decoded: {decoded_answers}")
 
         # DataLoader
         train_dataloader = DataLoader(
@@ -165,7 +167,9 @@ if __name__ == "__main__":
             drop_last=config["DATALOADER"]["drop_last"],
         )
 
-        logger.info(f"Load data, fold:{fold_idx} train:{len(train_dataset)} val:{len(val_dataset)}")
+        logger.info(
+            f"Load data, fold:{fold_idx} train:{len(train_dataset)} val:{len(val_dataset)}"
+        )
 
         """
         02. Set model
@@ -184,11 +188,11 @@ if __name__ == "__main__":
         if config["TRAINER"]["scheduler"] == "warmupcosine":
             lr *= 1e-2
         optimizer = get_optimizer(optimizer_name=config["TRAINER"]["optimizer"])
-        optimizer = optimizer(
-            params=model.parameters(), lr=lr
-        )
+        optimizer = optimizer(params=model.parameters(), lr=lr)
 
-        scheduler = get_scheduler(optimizer=optimizer, name=config["TRAINER"]["scheduler"], lr=lr)
+        scheduler = get_scheduler(
+            optimizer=optimizer, name=config["TRAINER"]["scheduler"], lr=lr
+        )
 
         # Loss
         loss_fn = get_loss(loss_name=config["TRAINER"]["loss"])
@@ -222,7 +226,9 @@ if __name__ == "__main__":
             tokenizer=tokenizer,
             amp=amp if config["TRAINER"]["amp"] else None,
             interval=config["LOGGER"]["logging_interval"],
-            grad_accum=config["TRAINER"]["grad_accum"] if "grad_accum" in config["TRAINER"].keys() else 1
+            grad_accum=config["TRAINER"]["grad_accum"]
+            if "grad_accum" in config["TRAINER"].keys()
+            else 1,
         )
 
         """
@@ -236,7 +242,7 @@ if __name__ == "__main__":
             scheduler=scheduler,
             amp=amp if config["TRAINER"]["amp"] else None,
             logger=logger,
-            fold_idx=fold_idx
+            fold_idx=fold_idx,
         )
 
         # !Wandb
@@ -245,7 +251,11 @@ if __name__ == "__main__":
             wandb_project_serial = config["LOGGER"]["wandb"]["project_serial"]
             wandb_username = config["LOGGER"]["wandb"]["username"]
             wandb.init(
-                project=wandb_project_serial, dir=RECORDER_DIR, entity=wandb_username, name=f"{train_serial}_{fold_idx}fold", group=train_serial
+                project=wandb_project_serial,
+                dir=RECORDER_DIR,
+                entity=wandb_username,
+                name=f"{train_serial}_{fold_idx}fold",
+                group=train_serial,
             )
             # wandb.run.name = f"{train_serial}_{fold_idx}fold"
             wandb.config.update(config)
@@ -277,7 +287,7 @@ if __name__ == "__main__":
                 epoch_index=epoch_index,
                 tokenizer=tokenizer,
                 mode="train",
-                random_masking=config['AUGMENTATION']['random_masking']
+                random_masking=config["AUGMENTATION"]["random_masking"],
             )
 
             if scheduler is not None:
@@ -302,7 +312,7 @@ if __name__ == "__main__":
                 epoch_index=epoch_index,
                 tokenizer=tokenizer,
                 mode="val",
-                random_masking=False
+                random_masking=False,
             )
 
             row_dict["val_loss"] = trainer.loss_mean
@@ -339,19 +349,23 @@ if __name__ == "__main__":
                 if USE_WANDB:
                     wandb.log(best_row_dict)
                 break
-        
+
             # end of epoch
             """
             Record Val Prediction
             """
             if early_stopper.patience_counter == 0:
                 val_df = pd.DataFrame(
-                    data={'question_id':trainer.q_ids, 'answer_text':trainer.y, 'pred_text':trainer.y_preds},
-                    columns=['question_id', 'answer_text', 'pred_text']
+                    data={
+                        "question_id": trainer.q_ids,
+                        "answer_text": trainer.y,
+                        "pred_text": trainer.y_preds,
+                    },
+                    columns=["question_id", "answer_text", "pred_text"],
                 )
             save_csv(os.path.join(RECORDER_DIR, f"validation_{fold_idx}.csv"), val_df)
             trainer.clear_history()
-        
+
         # end of fold
         if USE_WANDB:
             wandb.finish()
@@ -360,7 +374,7 @@ if __name__ == "__main__":
     """
     Record All Fold Val Prediction
     """
-    all_val_df = pd.DataFrame(columns=['question_id', 'answer_text', 'pred_text'])
+    all_val_df = pd.DataFrame(columns=["question_id", "answer_text", "pred_text"])
     if n_fold is None:
         n_fold = 1
     for fold_idx in range(n_fold):
