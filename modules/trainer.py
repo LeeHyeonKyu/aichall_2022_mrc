@@ -130,7 +130,7 @@ class Trainer:
                     else:
                         s = offsets[start_idx][0]
                         e = offsets[end_idx][0]
-                        pred_txt = context[s:e]
+                        pred_txt = context[s:e].strip()
                     self.y.append(ans_txt)
                     self.y_preds.append(pred_txt)
                     self.q_ids.append(q_id)
