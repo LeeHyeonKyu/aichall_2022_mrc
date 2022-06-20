@@ -15,7 +15,6 @@ from modules.utils import load_json
 # from apex import amp
 
 
-
 class Trainer:
     def __init__(
         self,
@@ -84,13 +83,16 @@ class Trainer:
                     token_type_ids=token_type_ids,
                 )
 
-                loss = self.loss_fn(
-                    start_positions,
-                    end_positions,
-                    outputs.start_logits,
-                    outputs.end_logits,
-                    outputs.q_logit
-                ) / self.grad_accum
+                loss = (
+                    self.loss_fn(
+                        start_positions,
+                        end_positions,
+                        outputs.start_logits,
+                        outputs.end_logits,
+                        outputs.q_logit,
+                    )
+                    / self.grad_accum
+                )
                 # start_score = outputs.start_logits
                 # end_score = outputs.end_logits
 
