@@ -89,7 +89,8 @@ class Trainer:
                     end_positions,
                     outputs.start_logits,
                     outputs.end_logits,
-                )
+                    outputs.q_logit
+                ) / self.grad_accum
                 # start_score = outputs.start_logits
                 # end_score = outputs.end_logits
 
@@ -97,7 +98,7 @@ class Trainer:
                 end_idxes = torch.argmax(outputs.end_logits, dim=1).cpu().tolist()
 
                 # Update
-                if mode == "train" and batch_index % self.grad_accum == 0:
+                if mode == "train":
 
                     if self.amp is None:
                         loss.backward()
@@ -106,8 +107,9 @@ class Trainer:
                         with self.amp.scale_loss(loss, self.optimizer) as scaled_loss:
                             scaled_loss.backward()
 
-                    self.optimizer.step()
-                    self.optimizer.zero_grad()
+                    if batch_index % self.grad_accum == 0:
+                        self.optimizer.step()
+                        self.optimizer.zero_grad()
 
                 elif mode in ["val", "test"]:
                     pass

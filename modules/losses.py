@@ -13,9 +13,10 @@ def get_loss(loss_name: str, ignore_index=None):
         return joint_loss
     elif loss_name == "mix":
         return mix_loss
+    elif loss_name == "multi":
+        return multi_loss
 
-
-def ce_loss(start_positions, end_positions, start_logits, end_logits):
+def ce_loss(start_positions, end_positions, start_logits, end_logits, q_logit=None):
     """MRC Task에서 Loss를 계산하는 기본 함수"""
     total_loss = None
 
@@ -39,7 +40,7 @@ def ce_loss(start_positions, end_positions, start_logits, end_logits):
     return total_loss
 
 
-def joint_loss(start_positions, end_positions, start_logits, end_logits):
+def joint_loss(start_positions, end_positions, start_logits, end_logits, q_logit=None):
     """start와 end의 joint loss를 계산하는 함수"""
     batch_size, length = start_logits.size()
     joint_logit = start_logits.unsqueeze(2) * end_logits.unsqueeze(1)
@@ -51,8 +52,16 @@ def joint_loss(start_positions, end_positions, start_logits, end_logits):
     return loss
 
 
-def mix_loss(start_positions, end_positions, start_logits, end_logits):
+def mix_loss(start_positions, end_positions, start_logits, end_logits, q_logit=None):
     return (
         joint_loss(start_positions, end_positions, start_logits, end_logits)
         + ce_loss(start_positions, end_positions, start_logits, end_logits)
     ) / 2
+
+def multi_loss(start_positions, end_positions, start_logits, end_logits, q_logit):
+    loss_fn = nn.BCELoss()
+    gt = ((start_positions + end_positions) != 0) * 1.0
+    q_logit = q_logit.flatten()
+    tot_loss = loss_fn(q_logit, gt)/10
+    tot_loss += ce_loss(start_positions, end_positions, start_logits, end_logits)
+    return tot_loss
