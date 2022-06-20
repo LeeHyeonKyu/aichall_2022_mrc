@@ -18,6 +18,8 @@ from modules.trainer import (apply_train_distribution,
                              get_token_distance_distribution)
 from modules.utils import load_csv, load_yaml, save_csv, save_json, save_pickle
 
+from konlpy.tag import Okt, Mecab, Hannanum
+
 # Config
 PROJECT_DIR = os.path.dirname(__file__)
 predict_config = load_yaml(os.path.join(PROJECT_DIR, "config", "predict_config.yml"))
@@ -163,6 +165,9 @@ if __name__ == "__main__":
         all_fold_preds["end_score"]
     )
 
+    mecab = Mecab()
+    okt = Okt()
+    hannanum= Hannanum()
     y_pred, q_ids = [], []
     for context, offsets, start_score, end_score, question_id in zip(
         all_fold_preds["context"],
@@ -187,6 +192,30 @@ if __name__ == "__main__":
             e = offsets[end_idx][0]
             ans_txt = context[s:e]
         ans_txt = re.sub("ʻ|ʼ|➄|™|『|』", "", ans_txt)
+        
+        mecab_pos_tag = mecab.pos(ans_txt)
+        okt_pos_tag = okt.pos(ans_txt)
+        hannanum_pos_tag = hannanum.pos(ans_txt)
+        
+        pos_tag = {}
+        if mecab_pos_tag[-1][-1] in {"JKS", "JKB", "VCP", "VCP+EC", "JX", "VCP+ETM", "EC"}:
+            count = pos_tag.get(mecab_pos_tag[-1][0], 0)
+            pos_tag[mecab_pos_tag[-1][0]] = count + 1
+
+        if okt_pos_tag[-1][-1] == "Josa":
+            count = pos_tag.get(okt_pos_tag[-1][0], 0)
+            pos_tag[okt_pos_tag[-1][0]] = count + 2
+
+        if hannanum_pos_tag[-1][-1] == "J":
+            count = pos_tag.get(hannanum_pos_tag[-1][0], 0)
+            pos_tag[hannanum_pos_tag[-1][0]] = count + 1
+        
+        if pos_tag and len(pos_tag) == 1 and list(pos_tag.values())[0] >= 3:
+            josa = list(pos_tag.keys())[0]
+            ans_txt = ans_txt.strip()[:-len(josa)]
+        elif "입니다" in ans_txt:
+            ans_txt = ans_txt.split("입니다")[0].strip()
+
         y_pred.append(ans_txt)
         q_ids.append(question_id)
 
