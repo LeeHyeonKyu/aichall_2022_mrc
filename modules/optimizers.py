@@ -1,8 +1,8 @@
 """Optimizer 정의
 """
 
-import torch.optim as optim
 import adamp
+import torch.optim as optim
 
 
 def get_optimizer(optimizer_name: str):
