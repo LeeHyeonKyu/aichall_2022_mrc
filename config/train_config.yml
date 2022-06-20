@@ -8,13 +8,13 @@ AUGMENTATION:
   gpt_aug: True
   
 TRAINER :
-  debug: False
+  debug: True
   tokenizer: AutoTokenizer
-  model: QASDS # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
-  pretrained: klue/roberta-large # klue/roberta-base #large  #xlm-roberta-large #tau/splinter-base
+  model: MQASDS # AutoModelForQuestionAnswering # Conv # QAConv #SDS #QASDS
+  pretrained: klue/roberta-base # klue/roberta-base #large  #xlm-roberta-large #tau/splinter-base
   optimizer: adamp
   learning_rate: 1.0e-5
-  loss: mix #mix #joint #crossentropy
+  loss: multi #multi #mix #joint #crossentropy
   scheduler: warmupcosine
   metric:
     - accuracy
@@ -22,11 +22,11 @@ TRAINER :
   early_stopping_target: val_loss
   early_stopping_patience: 5
   early_stopping_mode: min
-  amp: True
+  amp: False
   gpu: 0
   seed: 42
   grad_accum: 16
-  KFold: 5
+  KFold: 0
 
 DATALOADER:
   batch_size: 4

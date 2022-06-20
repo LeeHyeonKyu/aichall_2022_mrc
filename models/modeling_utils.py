@@ -45,7 +45,7 @@ class QAConvSDSLayer(nn.Module):
 class AttentionLayer(nn.Module):
     """Attention for query embedding"""
 
-    def __init__(self, config):
+    def __init__(self, config, need_query_emb=False):
         """
         Args:
             config (ModelArguments): ModelArguments
@@ -65,6 +65,7 @@ class AttentionLayer(nn.Module):
         self.key_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
         self.value_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
         self.dropout = nn.Dropout(0.1)
+        self.need_query_emb = need_query_emb
 
     def forward(self, x: torch.Tensor, token_type_ids: torch.Tensor) -> torch.Tensor:
         """
@@ -96,7 +97,10 @@ class AttentionLayer(nn.Module):
 
         embedded_value = self.value_layer(x)
         embedded_value = embedded_value * attention_rate
-        return embedded_value
+        if not self.need_query_emb:
+            return embedded_value
+        else:
+            return embedded_value, embedded_query
 
 
 class ConvLayer(nn.Module):

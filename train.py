@@ -103,7 +103,7 @@ if __name__ == "__main__":
             )
         logger.info("loaded data, created .pkl")
 
-    if n_fold is None:
+    if n_fold is None or n_fold == 0:
         train_idxes = list(df_dataset.index)[: -1 * int(len(df_dataset) * 0.1)]
         val_idxes = list(df_dataset.index)[-1 * int(len(df_dataset) * 0.1) :]
         train_val_idx_lst = [(train_idxes, val_idxes)]
