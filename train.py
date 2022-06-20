@@ -187,8 +187,14 @@ if __name__ == "__main__":
         lr = config["TRAINER"]["learning_rate"]
         if config["TRAINER"]["scheduler"] == "warmupcosine":
             lr *= 1e-2
-        optimizer = get_optimizer(optimizer_name=config["TRAINER"]["optimizer"])
-        optimizer = optimizer(params=model.parameters(), lr=lr)
+        if config["TRAINER"]["optimizer"] == 'adamp':
+            from adamp import AdamP
+            optimizer = AdamP(model.parameters(), lr=lr, betas=(0.9, 0.999), weight_decay=1e-2)
+        else:
+            optimizer = get_optimizer(optimizer_name=config["TRAINER"]["optimizer"])
+            optimizer = optimizer(
+                params=model.parameters(), lr=lr
+            )
 
         scheduler = get_scheduler(
             optimizer=optimizer, name=config["TRAINER"]["scheduler"], lr=lr
