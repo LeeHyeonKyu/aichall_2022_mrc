@@ -3,8 +3,8 @@ from importlib import import_module
 from huggingface_hub import HfApi
 from transformers import AutoModelForQuestionAnswering
 
-from models.custom_models import (ConvModel, ConvSDSModel, QAConvModel,
-                                  QAConvSDSModel, MultiQAConvSDSModel, electra)
+from models.custom_models import (ConvModel, ConvSDSModel, MultiQAConvSDSModel,
+                                  QAConvModel, QAConvSDSModel, electra)
 
 
 def get_model(model_name: str, pretrained):
