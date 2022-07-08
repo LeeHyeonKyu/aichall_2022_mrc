@@ -2,7 +2,7 @@
 ## [자연어] 문서 검색 효율화를 위한 기계독해 문제
 
 ### Team Solution
-[Team Solution](Team_Solution.pdf)
+[Team Solution](Team_Solution.pdf)  
 [Origin Notion Link](https://www.notion.so/thinkwisely/2022-Online-AI-Competition-Machine-Reading-Problems-for-Efficient-Document-Retrieval-8c0eecb90f0e487882c018baee3d3f60)
 
 ### 코드 구조
