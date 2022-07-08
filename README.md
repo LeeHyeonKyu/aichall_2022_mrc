@@ -2,7 +2,7 @@
 ## [자연어] 문서 검색 효율화를 위한 기계독해 문제
 
 ### Team Solution
-[Team Solution] (Team_Solution.pdf)
+[Team Solution](Team_Solution.pdf)
 
 ### 코드 구조
 
